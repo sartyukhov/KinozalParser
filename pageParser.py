@@ -38,7 +38,7 @@ SOURCE  = Source.BDRip
 SORT    = Sort.Pirs
 DAYS    = Days._3
 #debug - LOCAL / Release - WEB
-MODE    = Mode.LOCAL
+MODE    = Mode.WEB
 
 class FilesContainer:
     def __init__(self):
@@ -66,12 +66,14 @@ class FilesContainer:
     def getInfo(self):
         return '\n'.join(x.getInfo() for x in self.files)
 
-class Video:
+class Torrent:
     def __init__(self, id, name):
         self.id   = id
         self.name = name
     def getInfo(self):
         return '{0:50} {1}'.format(self.name, self.id)
+    def getUrl(self):
+        return 'http://kinozal.tv/details.php?id=' + self.id
 
 def parse():
     htmlFile = 'page.html'
@@ -98,8 +100,8 @@ def main():
     filesContainer = FilesContainer()
 
     for p in parsed:
-        filesContainer.appendUnique(Video(p[0],p[1]))
-    
+        filesContainer.appendUnique(Torrent(p[0],p[1]))
+
     # sort is unnecessary now
     # filesContainer.sort()
 
