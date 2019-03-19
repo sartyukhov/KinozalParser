@@ -61,12 +61,17 @@ class FilesContainer:
         self.files.append(val)
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
-    def getList(self):
+    def getNames(self):
         return '\n'.join(x.name for x in self.files)
+    def getInfo(self):
+        return '\n'.join(x.getInfo() for x in self.files)
 
 class Video:
-    def __init__(self, name):
+    def __init__(self, id, name):
+        self.id   = id
         self.name = name
+    def getInfo(self):
+        return '{0:50} {1}'.format(self.name, self.id)
 
 def parse():
     htmlFile = 'page.html'
@@ -85,21 +90,21 @@ def parse():
         with open(htmlFile, 'r', encoding='UTF-8') as inputHTML:
             pageContent = inputHTML.read()
     # parsing (yeah, just one string)
-    findPattern = r'"r\d">([^/]+).*{s}.*{q}'.format(s=SOURCE, q=QUALITY)
+    findPattern = r'href.*id=(\d+)".*"r\d">([^/]+).*{s}.*{q}'.format(s=SOURCE, q=QUALITY)
     return findall(findPattern, pageContent)
 
 def main():
     parsed = parse()
     filesContainer = FilesContainer()
 
-    for name in parsed:
-        filesContainer.appendUnique(Video(name))
+    for p in parsed:
+        filesContainer.appendUnique(Video(p[0],p[1]))
     
     # sort is unnecessary now
     # filesContainer.sort()
 
     with open('page.txt', 'w') as outputTXT:
-        outputTXT.write(filesContainer.getList())
+        outputTXT.write(filesContainer.getInfo())
 
 
 if __name__ == "__main__":
