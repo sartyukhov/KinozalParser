@@ -1,6 +1,6 @@
 from urllib.request import urlopen
 from re             import findall
-
+import os
 
 #select quality
 class Quality():
@@ -18,16 +18,9 @@ class Days():
     _1 = 1
     _3 = 3
 
-# select script working mode
-class Mode:
-    LOCAL = 1
-    WEB   = 2
-
 QUALITY = Quality._1080p
 SORT    = Sort.Pirs
 DAYS    = Days._3
-#debug - LOCAL / Release - WEB
-MODE    = Mode.LOCAL
 
 class FilesContainer:
     def __init__(self):
@@ -67,10 +60,11 @@ class Torrent:
     def getUrl(self):
         return 'http://kinozal.tv/details.php?id=' + self.id
 
-def getContentFromPage(name, url):
-    htmlFile = name.replace(' ', '_') + '.html'
+def getContentFromPage(name, url, readLocal):
+    pathToScript = os.path.dirname(os.path.abspath(__file__))
+    htmlFile = '{}/{}.html'.format(pathToScript, name.replace(' ', '_'))
     # download and save HTML page
-    if MODE == Mode.WEB:
+    if not readLocal:
         with urlopen(url) as page:
             with open(htmlFile, 'wb') as outputHTML:
                 outputHTML.write(page.read())
@@ -89,11 +83,11 @@ def parse(content):
     findPattern = r'.*href="/details.php\?id=(\d+)".*"r\d">([^/]+).*/\s*(.+)\((.+)\)</a>'
     return findall(findPattern, content)
 
-def getTorrentsList():
+def getTorrentsList(readLocal=False):
     url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
         .format(q=QUALITY, d=DAYS, s=SORT)
     
-    parsed = parse(getContentFromPage('page', url))
+    parsed = parse(getContentFromPage('page', url, readLocal))
 
     filesContainer = FilesContainer()
     for p in parsed:
@@ -103,6 +97,6 @@ def getTorrentsList():
     # filesContainer.sort()
     return filesContainer
 
-if __name__ == "__main__":    
+if __name__ == "__main__":
     with open('page.txt', 'w') as outputTXT:
-        outputTXT.write(getTorrentsList().getInfo(10))
+        outputTXT.write(getTorrentsList(readLocal=True).getInfo(10))
