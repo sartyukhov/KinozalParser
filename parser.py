@@ -1,6 +1,15 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from urllib.request import urlopen
 from re             import findall
+from sys            import platform
 import os
+
+if platform == 'linux':
+    SLASH = '/'
+else:
+    SLASH = '\\'
 
 #select quality
 class Quality():
@@ -45,8 +54,8 @@ class FilesContainer:
         self.files = sorted(self.files, key=lambda f: f.name)
     def getNames(self):
         return '\n'.join(x.name for x in self.files)
-    def getInfo(self, num=None):
-        return '\n'.join(x.getInfo() for x in self.files[:num])
+    def getInfo(self, num=None, separator='-', sep_size=20):
+        return '\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files[:num])
 
 class Torrent:
     def __init__(self, id, name, source, quality):
@@ -54,20 +63,21 @@ class Torrent:
         self.name    = name
         self.source  = source
         self.quality = quality
-    def getInfo(self):
-        return '{0:50} | {1:7} | {2:7} | {3}'\
-            .format(self.name, self.id, self.quality, self.source)
     def getUrl(self):
         return 'http://kinozal.tv/details.php?id=' + self.id
+    def getInfo(self):
+        return '{n}\n{q:5} | {s:7} | [{i:7}]({u})'\
+            .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.getUrl())
 
 def getContentFromPage(name, url, readLocal):
     pathToScript = os.path.dirname(os.path.abspath(__file__))
-    htmlFile = '{}/{}.html'.format(pathToScript, name.replace(' ', '_'))
+    htmlFile = '{}{}{}.html'.format(pathToScript, SLASH, name.replace(' ', '_'))
     # download and save HTML page
     if not readLocal:
         with urlopen(url) as page:
             with open(htmlFile, 'wb') as outputHTML:
                 outputHTML.write(page.read())
+                print(outputHTML.name + ' created')
     # get saved HTML data to parse
     pageContent = ''
     try:
@@ -98,5 +108,4 @@ def getTorrentsList(readLocal=False):
     return filesContainer
 
 if __name__ == "__main__":
-    with open('page.txt', 'w') as outputTXT:
-        outputTXT.write(getTorrentsList(readLocal=True).getInfo(10))
+    pass
