@@ -1,5 +1,5 @@
-from urllib.request import *
-from re             import *
+from urllib.request import urlopen
+from re             import findall
 
 
 #select quality
@@ -52,8 +52,8 @@ class FilesContainer:
         self.files = sorted(self.files, key=lambda f: f.name)
     def getNames(self):
         return '\n'.join(x.name for x in self.files)
-    def getInfo(self):
-        return '\n'.join(x.getInfo() for x in self.files)
+    def getInfo(self, num=None):
+        return '\n'.join(x.getInfo() for x in self.files[:num])
 
 class Torrent:
     def __init__(self, id, name, source, quality):
@@ -89,22 +89,20 @@ def parse(content):
     findPattern = r'.*href="/details.php\?id=(\d+)".*"r\d">([^/]+).*/\s*(.+)\((.+)\)</a>'
     return findall(findPattern, content)
 
-def main():
+def getTorrentsList():
     url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
         .format(q=QUALITY, d=DAYS, s=SORT)
     
     parsed = parse(getContentFromPage('page', url))
-    filesContainer = FilesContainer()
 
+    filesContainer = FilesContainer()
     for p in parsed:
         filesContainer.appendUnique(Torrent(p[0],p[1],p[2],p[3]))
 
     # sort is unnecessary now
     # filesContainer.sort()
+    return filesContainer
 
+if __name__ == "__main__":    
     with open('page.txt', 'w') as outputTXT:
-        outputTXT.write(filesContainer.getInfo())
-
-
-if __name__ == "__main__":
-    main()
+        outputTXT.write(getTorrentsList().getInfo(10))
