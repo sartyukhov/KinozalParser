@@ -4,19 +4,9 @@ from re             import *
 
 #select quality
 class Quality():
-    _4K    = '4K'
-    _1080p = '1080p'
-    _720p  = '720p'
-    url = {
-        _4K    : 7,
-        _1080p : 3,
-        _720p  : 3
-    }
-
-#select quality
-class Source():
-    BDRip  = 'BDRip'
-    Web_DL = 'WEB-DL'
+    _4K    = 7
+    _1080p = 3
+    _720p  = 3
 
 #select sort
 class Sort():
@@ -34,11 +24,10 @@ class Mode:
     WEB   = 2
 
 QUALITY = Quality._1080p
-SOURCE  = Source.BDRip
 SORT    = Sort.Pirs
 DAYS    = Days._3
 #debug - LOCAL / Release - WEB
-MODE    = Mode.WEB
+MODE    = Mode.LOCAL
 
 class FilesContainer:
     def __init__(self):
@@ -67,40 +56,48 @@ class FilesContainer:
         return '\n'.join(x.getInfo() for x in self.files)
 
 class Torrent:
-    def __init__(self, id, name):
-        self.id   = id
-        self.name = name
+    def __init__(self, id, name, source, quality):
+        self.id      = id
+        self.name    = name
+        self.source  = source
+        self.quality = quality
     def getInfo(self):
-        return '{0:50} {1}'.format(self.name, self.id)
+        return '{0:50} | {1:7} | {2:7} | {3}'\
+            .format(self.name, self.id, self.quality, self.source)
     def getUrl(self):
         return 'http://kinozal.tv/details.php?id=' + self.id
 
-def parse():
-    htmlFile = 'page.html'
+def getContentFromPage(name, url):
+    htmlFile = name.replace(' ', '_') + '.html'
     # download and save HTML page
     if MODE == Mode.WEB:
-        url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
-            .format(q=Quality.url[QUALITY], d=DAYS, s=SORT)
         with urlopen(url) as page:
             with open(htmlFile, 'wb') as outputHTML:
                 outputHTML.write(page.read())
     # get saved HTML data to parse
+    pageContent = ''
     try:
         with open(htmlFile, 'r', encoding='windows 1251') as inputHTML:
             pageContent = inputHTML.read()
     except:
         with open(htmlFile, 'r', encoding='UTF-8') as inputHTML:
             pageContent = inputHTML.read()
+    return pageContent
+
+def parse(content):
     # parsing (yeah, just one string)
-    findPattern = r'href.*id=(\d+)".*"r\d">([^/]+).*{s}.*{q}'.format(s=SOURCE, q=QUALITY)
-    return findall(findPattern, pageContent)
+    findPattern = r'.*href="/details.php\?id=(\d+)".*"r\d">([^/]+).*/\s*(.+)\((.+)\)</a>'
+    return findall(findPattern, content)
 
 def main():
-    parsed = parse()
+    url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
+        .format(q=QUALITY, d=DAYS, s=SORT)
+    
+    parsed = parse(getContentFromPage('page', url))
     filesContainer = FilesContainer()
 
     for p in parsed:
-        filesContainer.appendUnique(Torrent(p[0],p[1]))
+        filesContainer.appendUnique(Torrent(p[0],p[1],p[2],p[3]))
 
     # sort is unnecessary now
     # filesContainer.sort()
