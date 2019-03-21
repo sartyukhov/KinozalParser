@@ -63,8 +63,9 @@ class FilesContainer:
         self.files = sorted(self.files, key=lambda f: f.name)
     def getNames(self):
         return '\n'.join(x.name for x in self.files)
-    def getInfo(self, separator='-', sep_size=20):
-        return '\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files)
+    def getInfo(self, separator='~', sep_size=20):
+        t = 'Новые раздачи на Kinozal.tv\n\n'
+        return t + ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
 
 class Torrent:
     def __init__(self, num, id, name, source, quality):
