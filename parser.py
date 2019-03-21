@@ -47,13 +47,18 @@ class FilesContainer:
             if f.name == item.name:
                 return True
         return False
-    def appendUnique(self, val):
-        if val not in self:
-            self.append(val)
+    def appendUnique(self, item):
+        if item in self:
+            # for f in self.files:
+            #     if f.name == item.name:
+            #         pos = self.files.index(f)
+            #         self.files.remove(f)
+            return False
+        else:
+            self.append(item)
             return True
-        return False
-    def append(self, val):
-        self.files.append(val)
+    def append(self, item):
+        self.files.append(item)
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
     def getNames(self):
@@ -62,7 +67,8 @@ class FilesContainer:
         return '\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files)
 
 class Torrent:
-    def __init__(self, id, name, source, quality):
+    def __init__(self, num, id, name, source, quality):
+        self.num     = num
         self.id      = id
         self.name    = name
         self.source  = source
@@ -74,14 +80,15 @@ class Torrent:
 
     def __getMoreData(self):
         parsed = parseTorrentPage(getContentFromPage('tor_page', self.url))
+        self.imdbUrl    = parsed.get('raturl', '?')
         self.imdbRating = parsed.get('rating', '?')
         self.size = parsed.get('size', '?')
 
     def getInfo(self):
         self.__getMoreData()
-        return '{n}\n{q:5} | {s:7} | [{i:7}]({u})\nIMDB {r} | Size: {si}'\
+        return '{N} : {n}\n{q:5} | {s:7} | [{i:7}]({u})\n[IMDB]({ru}) {r} | Size: {si}'\
             .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.url,
-            r=self.imdbRating, si=self.size)
+            ru=self.imdbUrl, r=self.imdbRating, si=self.size, N=(self.num + 1))
 
 def getContentFromPage(name, url):
     pathToScript = os.path.dirname(os.path.abspath(__file__))
@@ -115,9 +122,10 @@ def parseTorrentsList(content):
 
 def parseTorrentPage(content):
     d = dict()
-    findResult = findall(r'.*>IMDb<span class=.*>(.*)</span>', content)
+    findResult = findall(r'.*href="(.*)" target=.*>IMDb<span class=.*>(.*)</span>', content)
     if len(findResult) > 0:
-        d['rating'] = findResult[0]
+        d['raturl'] = findResult[0][0]
+        d['rating'] = findResult[0][1]
     findResult = findall(r'.*>Вес<span class=".*>(.*)\(.*\)</span>', content)
     if len(findResult) > 0:
         d['size'] = findResult[0]
@@ -134,7 +142,7 @@ def getTorrentsList(num=0, readLocal=False):
     filesContainer = FilesContainer()
     counter = 0
     for t in torrents:
-        if (filesContainer.appendUnique(Torrent(t[0],t[1],t[2],t[3]))):
+        if (filesContainer.appendUnique(Torrent(counter, t[0], t[1], t[2], t[3]))):
             counter += 1
             if counter >= num:
                 break
