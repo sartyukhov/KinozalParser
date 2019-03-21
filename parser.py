@@ -50,14 +50,16 @@ class FilesContainer:
     def appendUnique(self, val):
         if val not in self:
             self.append(val)
+            return True
+        return False
     def append(self, val):
         self.files.append(val)
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
     def getNames(self):
         return '\n'.join(x.name for x in self.files)
-    def getInfo(self, num=None, separator='-', sep_size=20):
-        return '\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files[:num])
+    def getInfo(self, separator='-', sep_size=20):
+        return '\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files)
 
 class Torrent:
     def __init__(self, id, name, source, quality):
@@ -66,7 +68,6 @@ class Torrent:
         self.source  = source
         self.quality = quality
         self.url     = self.__getUrl()
-        self.__getMoreData()
 
     def __getUrl(self):
         return 'http://kinozal.tv/details.php?id=' + self.id
@@ -77,6 +78,7 @@ class Torrent:
         self.size = parsed.get('size', '?')
 
     def getInfo(self):
+        self.__getMoreData()
         return '{n}\n{q:5} | {s:7} | [{i:7}]({u})\nIMDB {r} | Size: {si}'\
             .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.url,
             r=self.imdbRating, si=self.size)
@@ -100,10 +102,10 @@ def getContentFromPage(name, url):
             pageBuffer = page.read()
             try:
                 pageContent = pageBuffer.decode('UTF-8')
-                print('UTF-8')
+                print('Page {} opened in UTF-8'.format(name))
             except:
                 pageContent = pageBuffer.decode('cp1251')
-                print('cp1251')
+                print('Page {} opened in cp1251'.format(name))
     return pageContent
 
 def parseTorrentsList(content):
@@ -121,20 +123,23 @@ def parseTorrentPage(content):
         d['size'] = findResult[0]
     return d
 
-def getTorrentsList(readLocal=False):
+def getTorrentsList(num=0, readLocal=False):
     global READLOCAL
     READLOCAL = readLocal
     url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
         .format(q=QUALITY, d=DAYS, s=SORT)
     
-    parsed = parseTorrentsList(getContentFromPage('page', url))
+    torrents = parseTorrentsList(getContentFromPage('page', url))
 
     filesContainer = FilesContainer()
-    for p in parsed:
-        filesContainer.appendUnique(Torrent(p[0],p[1],p[2],p[3]))
+    counter = 0
+    for t in torrents:
+        if (filesContainer.appendUnique(Torrent(t[0],t[1],t[2],t[3]))):
+            counter += 1
+            if counter >= num:
+                break
 
     return filesContainer
 
 if __name__ == "__main__":
-    READLOCAL = False
     print(getContentFromPage('tor_page', 'http://kinozal.tv/'))
