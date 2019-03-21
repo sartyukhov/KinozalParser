@@ -11,6 +11,8 @@ if platform == 'linux':
 else:
     SLASH = '\\'
 
+READLOCAL = True
+
 #select quality
 class Quality():
     _4K    = 7
@@ -63,49 +65,76 @@ class Torrent:
         self.name    = name
         self.source  = source
         self.quality = quality
-    def getUrl(self):
-        return 'http://kinozal.tv/details.php?id=' + self.id
-    def getInfo(self):
-        return '{n}\n{q:5} | {s:7} | [{i:7}]({u})'\
-            .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.getUrl())
+        self.url     = self.__getUrl()
+        self.__getMoreData()
 
-def getContentFromPage(name, url, readLocal):
+    def __getUrl(self):
+        return 'http://kinozal.tv/details.php?id=' + self.id
+
+    def __getMoreData(self):
+        parsed = parseTorrentPage(getContentFromPage('tor_page', self.url))
+        self.imdbRating = parsed.get('rating', '?')
+        self.size = parsed.get('size', '?')
+
+    def getInfo(self):
+        return '{n}\n{q:5} | {s:7} | [{i:7}]({u})\nIMDB {r} | Size: {si}'\
+            .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.url,
+            r=self.imdbRating, si=self.size)
+
+def getContentFromPage(name, url):
     pathToScript = os.path.dirname(os.path.abspath(__file__))
     htmlFile = '{}{}{}.html'.format(pathToScript, SLASH, name.replace(' ', '_'))
-    # download and save HTML page
-    if not readLocal:
-        with urlopen(url) as page:
-            with open(htmlFile, 'wb') as outputHTML:
-                outputHTML.write(page.read())
-                print(outputHTML.name + ' created')
+    # pageContent = ''
     # get saved HTML data to parse
-    pageContent = ''
-    try:
-        with open(htmlFile, 'r', encoding='windows 1251') as inputHTML:
-            pageContent = inputHTML.read()
-    except:
-        with open(htmlFile, 'r', encoding='UTF-8') as inputHTML:
-            pageContent = inputHTML.read()
+    global READLOCAL
+    if READLOCAL:
+        try:
+            with open(htmlFile, 'r', encoding='UTF-8') as inputHTML:
+                pageContent = inputHTML.read()
+        except:
+            with open(htmlFile, 'r', encoding='cp1251') as inputHTML:
+                pageContent = inputHTML.read()
+    else: 
+    # download HTML page
+        with urlopen(url) as page:
+            pageBuffer = page.read()
+            try:
+                pageContent = pageBuffer.decode('UTF-8')
+                print('UTF-8')
+            except:
+                pageContent = pageBuffer.decode('cp1251')
+                print('cp1251')
     return pageContent
 
-def parse(content):
+def parseTorrentsList(content):
     # parsing (yeah, just one string)
     findPattern = r'.*href="/details.php\?id=(\d+)".*"r\d">([^/]+).*/\s*(.+)\((.+)\)</a>'
     return findall(findPattern, content)
 
+def parseTorrentPage(content):
+    d = dict()
+    findResult = findall(r'.*>IMDb<span class=.*>(.*)</span>', content)
+    if len(findResult) > 0:
+        d['rating'] = findResult[0]
+    findResult = findall(r'.*>Вес<span class=".*>(.*)\(.*\)</span>', content)
+    if len(findResult) > 0:
+        d['size'] = findResult[0]
+    return d
+
 def getTorrentsList(readLocal=False):
+    global READLOCAL
+    READLOCAL = readLocal
     url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
         .format(q=QUALITY, d=DAYS, s=SORT)
     
-    parsed = parse(getContentFromPage('page', url, readLocal))
+    parsed = parseTorrentsList(getContentFromPage('page', url))
 
     filesContainer = FilesContainer()
     for p in parsed:
         filesContainer.appendUnique(Torrent(p[0],p[1],p[2],p[3]))
 
-    # sort is unnecessary now
-    # filesContainer.sort()
     return filesContainer
 
 if __name__ == "__main__":
-    pass
+    READLOCAL = False
+    print(getContentFromPage('tor_page', 'http://kinozal.tv/'))
