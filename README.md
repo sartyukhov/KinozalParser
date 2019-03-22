@@ -1,2 +1,2 @@
-# KinozalBot
-Search new releases and send them to Telegram
+# KinozalParser
+Search new releases at Kinozal.tv

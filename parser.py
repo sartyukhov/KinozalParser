@@ -128,7 +128,7 @@ class TorrentsContainer:
         return '\n'.join(x.name for x in self.files)
 
     def getInfo(self, separator='~', sep_size=15):
-        t = '**Новые раздачи на Kinozal.tv**\n\n'
+        t = '**Новые раздачи на Kinozal**\n\n'
         t += ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
         t += strftime('\n\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
         self.dump()
