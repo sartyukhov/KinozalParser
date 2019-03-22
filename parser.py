@@ -4,6 +4,7 @@
 from urllib.request import urlopen
 from re             import findall
 from sys            import platform
+from pickle         import dump, load
 import os
 
 if platform == 'linux':
@@ -140,6 +141,7 @@ def getTorrentsList(num=0, readLocal=False):
     
     torrents = parseTorrentsList(getContentFromPage('page', url))
 
+
     filesContainer = FilesContainer()
     counter = 0
     for t in torrents:
@@ -147,6 +149,9 @@ def getTorrentsList(num=0, readLocal=False):
             counter += 1
             if counter >= num:
                 break
+    
+    with open('dataBase.db', 'wb') as db:
+        dump(filesContainer, db)
 
     return filesContainer
 
