@@ -5,7 +5,8 @@ from urllib.request import urlopen
 from re             import findall
 from sys            import platform
 from pickle         import dump, load
-from time           import time
+from time           import time, gmtime, strftime
+
 # from datetime       import datetime as date
 import os
 
@@ -57,7 +58,7 @@ class TorrentsContainer:
         cls.forceupdate = forceupdate
 
     def __init__(self):
-        self.created = time()
+        self.created = time() + 10800 # UTC+3
         self.files   = []
         if self.forceupdate:
             self.update()
@@ -137,8 +138,9 @@ class TorrentsContainer:
         return '\n'.join(x.name for x in self.files)
 
     def getInfo(self, separator='~', sep_size=15):
-        t = 'Новые раздачи на Kinozal.tv\n\n'
+        t = '**Новые раздачи на Kinozal.tv**\n\n'
         t += ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
+        t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
         self.dump()
         return t
 
@@ -165,7 +167,7 @@ class Torrent:
 
     def getInfo(self):
         self.__getMoreData()
-        return '{N} : {n}\n{q:5} | {s:7} | [{i:7}]({u})\n[IMDB]({ru}) {r} | Size: {si}'\
+        return '{N} : {n}\n{q:5} | {s} | [{i:7}]({u})\n[IMDB]({ru}) {r} | Size: {si}'\
             .format(n=self.name, i=self.id, q=self.quality, s=self.source, u=self.url,
             ru=self.imdbUrl, r=self.imdbRating, si=self.size, N=(self.num + 1))
 
@@ -223,4 +225,4 @@ def getTorrentsList(num, dbfreshtime, forceupdate, readLocal=False):
 
 if __name__ == "__main__":
     pass
-    # print(getContentFromPage('tor_page', 'http://kinozal.tv/'))
+    print(strftime('Upd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(time()+10800)))
