@@ -159,6 +159,7 @@ def getTorrentsList(num=0, readLocal=False, dbfreshtime=1800, forceupdate=False)
     # check that database is up to date
     if (forceupdate) or ((time() - oldDbTime) > dbfreshtime):
         print('[L]: Geting data from WEB...')
+        filesContainer = FilesContainer()
         url = "http://kinozal.tv/browse.php?s=&g=0&c={c}&v={q}&d=0&w={d}&t={s}&f=0"\
             .format(c=CONTENT, q=QUALITY, d=DAYS, s=SORT)
         torrents = parseTorrentsList(getContentFromPage('page', url))
