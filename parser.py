@@ -85,15 +85,19 @@ class Torrent:
         self.source  = source
         self.quality = quality
         self.url     = self.__getUrl()
+        self.moreDataExists = False
 
     def __getUrl(self):
         return 'http://kinozal.tv/details.php?id=' + self.id
 
     def __getMoreData(self):
-        parsed = parseTorrentPage(getContentFromPage('tor_page', self.url))
-        self.imdbUrl    = parsed.get('raturl', '?')
-        self.imdbRating = parsed.get('rating', '?')
-        self.size = parsed.get('size', '?')
+        if (not self.moreDataExists):
+            parsed = parseTorrentPage(getContentFromPage('tor_page', self.url))
+            self.imdbUrl    = parsed.get('raturl', '?')
+            self.imdbRating = parsed.get('rating', '?')
+            self.size = parsed.get('size', '?')
+            self.moreDataExists = True
+        
 
     def getInfo(self):
         self.__getMoreData()
