@@ -6,6 +6,7 @@ from re             import findall
 from sys            import platform
 from pickle         import dump, load
 from time           import time, gmtime, strftime
+from enum           import Enum
 
 # from datetime       import datetime as date
 import os
@@ -19,43 +20,39 @@ READLOCAL = True
 SPATH = os.path.dirname(os.path.abspath(__file__))
 
 #select file
-class Content():
-    Movies = 1002
+class Content(Enum):
+    MOVIES = 1002
 
 #select quality
-class Quality():
+class Quality(Enum):
     _4K    = 7
-    _1080p = 3
-    _720p  = 3
+    _1080P = 3
+    _720P  = 3
 
 #select sort
-class Sort():
-    Sids = 1
-    Pirs = 2
+class Sort(Enum):
+    SIDS = 1
+    PIRS = 2
 
 #select days
-class Days():
+class Days(Enum):
+    ANY = 0
     _1 = 1
     _3 = 3
-
-CONTENT = Content.Movies
-QUALITY = Quality._1080p
-SORT    = Sort.Pirs
-DAYS    = Days._3
-
 
 class TorrentsContainer:
     # class variables
     dbName = '{}{}{}.db'.format(SPATH, SLASH, 'torrentsList')
-    num    = 10
-    dbfreshtime = 1800
-    forceupdate = False
 
     @classmethod
-    def Config(cls, num, dbfreshtime, forceupdate):
-        cls.num = num
-        cls.dbfreshtime = dbfreshtime
-        cls.forceupdate = forceupdate
+    def Config(cls, **kwargs):
+        cls.num         = kwargs.pop('num',         10)
+        cls.dbfreshtime = kwargs.pop('dbfreshtime', 1800)
+        cls.forceupdate = kwargs.pop('forceupdate', False)
+        cls.content     = kwargs.pop('content',     Content.MOVIES)
+        cls.quality     = kwargs.pop('quality',     Quality._1080P)
+        cls.sort        = kwargs.pop('sort',        Sort.PIRS)
+        cls.days        = kwargs.pop('days',        Days.ANY)
 
     def __init__(self):
         self.created = time() + 10800 # UTC+3
@@ -64,15 +61,6 @@ class TorrentsContainer:
             self.update()
         else:
             self.load()
-
-    def __getitem__(self, key):
-        return self.files[key]
-
-    def __setitem__(self, key, val):
-        self.files[key] = val
-
-    def __iter__(self):
-        return iter(self.files)
         
     def __contains__(self, item):
         for f in self.files:
@@ -109,8 +97,10 @@ class TorrentsContainer:
 
     def update(self):
         url = "http://kinozal.tv/browse.php?s=&g=0&c={c}&v={q}&d=0&w={d}&t={s}&f=0"\
-            .format(c=CONTENT, q=QUALITY, d=DAYS, s=SORT)
-
+            .format(c=self.content.value, 
+                    q=self.quality.value, 
+                    d=self.days.value, 
+                    s=self.sort.value)
         torrentsList = parseTorrentsList(getContentFromPage('page', url))
 
         counter = 0
@@ -140,7 +130,7 @@ class TorrentsContainer:
     def getInfo(self, separator='~', sep_size=15):
         t = '**Новые раздачи на Kinozal.tv**\n\n'
         t += ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
-        t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
+        t += strftime('\n\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
         self.dump()
         return t
 
@@ -212,12 +202,12 @@ def parseTorrentPage(content):
         d['size'] = findResult[0]
     return d
 
-def getTorrentsList(num, dbfreshtime, forceupdate, readLocal=False):
+def getTorrentsList(**kwargs):
     # set debug/working mode
     global READLOCAL
-    READLOCAL = readLocal
+    READLOCAL = kwargs.pop('readLocal', False)
 
-    TorrentsContainer.Config(num, dbfreshtime, forceupdate)
+    TorrentsContainer.Config(**kwargs)
 
     torrentsContainer = TorrentsContainer()
 
