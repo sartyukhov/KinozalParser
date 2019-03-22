@@ -5,6 +5,8 @@ from urllib.request import urlopen
 from re             import findall
 from sys            import platform
 from pickle         import dump, load
+from time           import time
+# from datetime       import datetime as date
 import os
 
 if platform == 'linux':
@@ -13,6 +15,11 @@ else:
     SLASH = '\\'
 
 READLOCAL = True
+SPATH = os.path.dirname(os.path.abspath(__file__))
+
+#select file
+class Content():
+    Movies = 1002
 
 #select quality
 class Quality():
@@ -30,13 +37,15 @@ class Days():
     _1 = 1
     _3 = 3
 
+CONTENT = Content.Movies
 QUALITY = Quality._1080p
 SORT    = Sort.Pirs
 DAYS    = Days._3
 
 class FilesContainer:
     def __init__(self):
-        self.files = []
+        self.created = time()
+        self.files   = []
     def __getitem__(self, key):
         return self.files[key]
     def __setitem__(self, key, val):
@@ -93,8 +102,7 @@ class Torrent:
             ru=self.imdbUrl, r=self.imdbRating, si=self.size, N=(self.num + 1))
 
 def getContentFromPage(name, url):
-    pathToScript = os.path.dirname(os.path.abspath(__file__))
-    htmlFile = '{}{}{}.html'.format(pathToScript, SLASH, name.replace(' ', '_'))
+    htmlFile = '{}{}{}.html'.format(SPATH, SLASH, name.replace(' ', '_'))
     # pageContent = ''
     # get saved HTML data to parse
     global READLOCAL
@@ -133,27 +141,43 @@ def parseTorrentPage(content):
         d['size'] = findResult[0]
     return d
 
-def getTorrentsList(num=0, readLocal=False):
+def getTorrentsList(num=0, readLocal=False, dbfreshtime=1800, forceupdate=False):
+    # set debug/working mode
     global READLOCAL
     READLOCAL = readLocal
-    url = "http://kinozal.tv/browse.php?s=&g=0&c=1002&v={q}&d=0&w={d}&t={s}&f=0"\
-        .format(q=QUALITY, d=DAYS, s=SORT)
-    
-    torrents = parseTorrentsList(getContentFromPage('page', url))
 
+    # load saved database (if exists)
+    dbName = '{}{}{}.db'.format(SPATH, SLASH, 'torrentsList')
+    try:
+        with open(dbName, 'rb') as db:
+            filesContainer = load(db)
+            oldDbTime = filesContainer.created
+    except Exception as e:
+        print('[E]: ' + str(e))
+        oldDbTime = 0
 
-    filesContainer = FilesContainer()
-    counter = 0
-    for t in torrents:
-        if (filesContainer.appendUnique(Torrent(counter, t[0], t[1], t[2], t[3]))):
-            counter += 1
-            if counter >= num:
-                break
-    
-    with open('dataBase.db', 'wb') as db:
-        dump(filesContainer, db)
+    # check that database is up to date
+    if (forceupdate) or ((time() - oldDbTime) > dbfreshtime):
+        print('[L]: Geting data from WEB...')
+        url = "http://kinozal.tv/browse.php?s=&g=0&c={c}&v={q}&d=0&w={d}&t={s}&f=0"\
+            .format(c=CONTENT, q=QUALITY, d=DAYS, s=SORT)
+        torrents = parseTorrentsList(getContentFromPage('page', url))
+
+        counter = 0
+        for t in torrents:
+            if (filesContainer.appendUnique(Torrent(counter, t[0], t[1], t[2], t[3]))):
+                counter += 1
+                if counter >= num:
+                    break
+        # update/create fresh database
+        with open(dbName, 'wb') as db:
+            dump(filesContainer, db)
+            print('[L]: Data base updated')
+    else:
+        print('[L]: Data is already up to date')
 
     return filesContainer
 
 if __name__ == "__main__":
-    print(getContentFromPage('tor_page', 'http://kinozal.tv/'))
+    pass
+    # print(getContentFromPage('tor_page', 'http://kinozal.tv/'))
