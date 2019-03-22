@@ -42,40 +42,105 @@ QUALITY = Quality._1080p
 SORT    = Sort.Pirs
 DAYS    = Days._3
 
-class FilesContainer:
+
+class TorrentsContainer:
+    # class variables
+    dbName = '{}{}{}.db'.format(SPATH, SLASH, 'torrentsList')
+    num    = 10
+    dbfreshtime = 1800
+    forceupdate = False
+
+    @classmethod
+    def Config(cls, num, dbfreshtime, forceupdate):
+        cls.num = num
+        cls.dbfreshtime = dbfreshtime
+        cls.forceupdate = forceupdate
+
     def __init__(self):
         self.created = time()
         self.files   = []
+        if self.forceupdate:
+            self.update()
+        else:
+            self.load()
+
     def __getitem__(self, key):
         return self.files[key]
+
     def __setitem__(self, key, val):
         self.files[key] = val
+
     def __iter__(self):
         return iter(self.files)
+        
     def __contains__(self, item):
         for f in self.files:
             if f.name == item.name:
                 return True
         return False
+
+    def load(self):
+        try:
+            with open(self.dbName, 'rb') as db:
+                old = load(db)
+                print('[L]: Database loaded')
+        except Exception as e:
+            print('[L]: Database load failed')
+            print('[E]: ' + str(e))
+            self.update()
+        else:
+            if (self.created - old.created) > self.dbfreshtime:
+                print('[L]: Database is too old')
+                self.update()
+            else:
+                self.created = old.created
+                self.files   = old.files
+                print('[L]: Database was used successfully')
+    
+    def dump(self):
+        try:
+            with open(self.dbName, 'wb') as db:
+                dump(self, db)
+                print('[L]: Database on disk updated')
+        except Exception as e:
+            print('[L]: Database on disk update failed') 
+            print('[E]: ' + str(e))
+
+    def update(self):
+        url = "http://kinozal.tv/browse.php?s=&g=0&c={c}&v={q}&d=0&w={d}&t={s}&f=0"\
+            .format(c=CONTENT, q=QUALITY, d=DAYS, s=SORT)
+
+        torrentsList = parseTorrentsList(getContentFromPage('page', url))
+
+        counter = 0
+        for t in torrentsList:
+            if (self.appendUnique(Torrent(counter, t[0], t[1], t[2], t[3]))):
+                counter += 1
+                if counter >= self.num:
+                    break
+        self.dump()
+
     def appendUnique(self, item):
         if item in self:
-            # for f in self.files:
-            #     if f.name == item.name:
-            #         pos = self.files.index(f)
-            #         self.files.remove(f)
             return False
         else:
             self.append(item)
             return True
+
     def append(self, item):
         self.files.append(item)
+
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
+
     def getNames(self):
         return '\n'.join(x.name for x in self.files)
-    def getInfo(self, separator='~', sep_size=20):
+
+    def getInfo(self, separator='~', sep_size=15):
         t = 'Новые раздачи на Kinozal.tv\n\n'
-        return t + ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
+        t += ('\n'.join((x.getInfo() + '\n' + separator*sep_size) for x in self.files))
+        self.dump()
+        return t
 
 class Torrent:
     def __init__(self, num, id, name, source, quality):
@@ -97,7 +162,6 @@ class Torrent:
             self.imdbRating = parsed.get('rating', '?')
             self.size = parsed.get('size', '?')
             self.moreDataExists = True
-        
 
     def getInfo(self):
         self.__getMoreData()
@@ -107,26 +171,27 @@ class Torrent:
 
 def getContentFromPage(name, url):
     htmlFile = '{}{}{}.html'.format(SPATH, SLASH, name.replace(' ', '_'))
-    # pageContent = ''
     # get saved HTML data to parse
     global READLOCAL
     if READLOCAL:
         try:
             with open(htmlFile, 'r', encoding='UTF-8') as inputHTML:
                 pageContent = inputHTML.read()
+                print('[L]: URL page {} opened in UTF-8 (local)'.format(name))
         except:
             with open(htmlFile, 'r', encoding='cp1251') as inputHTML:
                 pageContent = inputHTML.read()
+                print('[L]: URL page {} opened in cp1251 (local)'.format(name))
     else: 
     # download HTML page
         with urlopen(url) as page:
             pageBuffer = page.read()
             try:
                 pageContent = pageBuffer.decode('UTF-8')
-                print('Page {} opened in UTF-8'.format(name))
+                print('[L]: URL page {} opened in UTF-8'.format(name))
             except:
                 pageContent = pageBuffer.decode('cp1251')
-                print('Page {} opened in cp1251'.format(name))
+                print('[L]: URL page {} opened in cp1251'.format(name))
     return pageContent
 
 def parseTorrentsList(content):
@@ -145,43 +210,16 @@ def parseTorrentPage(content):
         d['size'] = findResult[0]
     return d
 
-def getTorrentsList(num=0, readLocal=False, dbfreshtime=1800, forceupdate=False):
+def getTorrentsList(num, dbfreshtime, forceupdate, readLocal=False):
     # set debug/working mode
     global READLOCAL
     READLOCAL = readLocal
 
-    # load saved database (if exists)
-    dbName = '{}{}{}.db'.format(SPATH, SLASH, 'torrentsList')
-    try:
-        with open(dbName, 'rb') as db:
-            filesContainer = load(db)
-            oldDbTime = filesContainer.created
-    except Exception as e:
-        print('[E]: ' + str(e))
-        oldDbTime = 0
+    TorrentsContainer.Config(num, dbfreshtime, forceupdate)
 
-    # check that database is up to date
-    if (forceupdate) or ((time() - oldDbTime) > dbfreshtime):
-        print('[L]: Geting data from WEB...')
-        filesContainer = FilesContainer()
-        url = "http://kinozal.tv/browse.php?s=&g=0&c={c}&v={q}&d=0&w={d}&t={s}&f=0"\
-            .format(c=CONTENT, q=QUALITY, d=DAYS, s=SORT)
-        torrents = parseTorrentsList(getContentFromPage('page', url))
+    torrentsContainer = TorrentsContainer()
 
-        counter = 0
-        for t in torrents:
-            if (filesContainer.appendUnique(Torrent(counter, t[0], t[1], t[2], t[3]))):
-                counter += 1
-                if counter >= num:
-                    break
-        # update/create fresh database
-        with open(dbName, 'wb') as db:
-            dump(filesContainer, db)
-            print('[L]: Data base updated')
-    else:
-        print('[L]: Data is already up to date')
-
-    return filesContainer
+    return torrentsContainer
 
 if __name__ == "__main__":
     pass
