@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 from urllib.request import urlopen
+from urllib.parse   import quote
 from re             import findall
 from sys            import platform
 from pickle         import dump, load
@@ -16,12 +17,14 @@ if platform == 'linux':
 else:
     SLASH = '\\'
 
-READLOCAL = True
+READLOCAL = False
 SPATH = os.path.dirname(os.path.abspath(__file__))
 
 #select file
 class Content(Enum):
-    MOVIES = 1002
+    TV_SHOWS = 1001
+    MOVIES   = 1002
+    CARTOONS = 1003
 
 #select quality
 class Quality(Enum):
@@ -100,7 +103,8 @@ class TorrentsContainer:
             .format(c=self.content.value, 
                     q=self.quality.value, 
                     d=self.days.value, 
-                    s=self.sort.value)
+                    s=self.sort.value
+        )
         torrentsList = parseTorrentsList(getContentFromPage('page', url))
 
         counter = 0
@@ -215,4 +219,9 @@ def getTorrentsList(**kwargs):
 
 if __name__ == "__main__":
     pass
-    print(strftime('Upd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(time()+10800)))
+    # url = 'http://kinozal.tv/browse.php?s=%C1%E0%EC%E1%EB%E1%E8&g=0&c=13&v=0&d=2018&w=0&t=0&f=0'
+    url = 'http://kinozal.tv/browse.php?s={s}&g=0&c=13&v=0&d=2018&w=0&t=0&f=0'.format(
+        s=quote('Бамблби')
+    )
+    print(url)
+    print(parseTorrentsList(getContentFromPage('searchPage', url)))
