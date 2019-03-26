@@ -2,7 +2,6 @@ from urllib.parse   import quote, urlparse, urlunparse
 from re             import findall, search, sub
 from pickle         import dump, load
 from time           import time, gmtime, strftime
-from enum           import Enum
 from urlOpener      import getUrlContent
 
 #select file
@@ -52,7 +51,7 @@ class TorrentsContainer:
         url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page=0'.format(
             c=content,
             t=sort
-        )        
+        )
         torrents = parseTorrentsList(getUrlContent(url, name='page'))
         for t in torrents:
             self.appendUnique(Torrent(t[0], t[1], content))
@@ -63,7 +62,7 @@ class TorrentsContainer:
 
     def __iter__(self):
         return iter(self.files)
-        
+
     def __len__(self):
         return len(self.files)
 
@@ -100,15 +99,16 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {n}\n[Rating: {r}]({ru})\n'.format(
-                N=counter, 
-                n=f.name, 
+            t += '{N}: {n}\n[{rn}: {r}]({ru})\n'.format(
+                N=counter,
+                n=f.name,
+                rn=f.ratsrc,
                 ru=f.raturl,
                 r=f.rating
             )
             if len(f.mirrors) > 0:
                 m = f.mirrors[0]
-                t += '[{q} {s}Gb {k}/10]({u})\n'.format(
+                t += 'Best: [{q} {s}Gb {k}/10]({u})\n'.format(
                     s=m['size'],
                     q=m['quality'],
                     k=m['kRating'],
@@ -130,7 +130,7 @@ class Torrent:
         self.content = content
         self.mirrors = []
         self.__parseInfo(info)
-        
+
     def __parseInfo(self, info):
         info = sub(' / ', '/', info)
         self.name = search(r'[^/]*', info).group()
@@ -139,6 +139,7 @@ class Torrent:
     def downloadMoreInfo(self):
         turl = self.baseUrl + self.id
         parsed = parseTorrentPage(getUrlContent(turl, name='tor_page'), rating=True)
+        self.ratsrc = parsed.get('ratsrc', '?')
         self.raturl = parsed.get('raturl', '?')
         self.rating = parsed.get('rating', '?')
 
@@ -162,12 +163,11 @@ class Torrent:
             parsed['url'] = turl
             self.mirrors.append(parsed)
             print('{} : {} | {} | {}'.format(
-                self.name, 
+                self.name,
                 parsed['size'],
-                parsed['quality'], 
-                parsed['kRating'])
-            )
-
+                parsed['quality'],
+                parsed['kRating']
+            ))
 
 def parseTorrentsList(content):
     fp = r'.*class="nam"><a href=".*/details.php\?id=(\d+).*">(.*)</a>.*>'
@@ -181,10 +181,12 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
             pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>.*'.format(db)
             findResult = findall(pattern, content)
             if len(findResult) > 0:
+                d['ratsrc'] = db
                 d['raturl'] = findResult[0][0]
                 d['rating'] = findResult[0][1]
                 break
             else:
+                d['ratsrc'] = '?'
                 d['raturl'] = '?'
                 d['rating'] = '?'
 
@@ -211,14 +213,14 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
 
     return d
 
-def updateDB(num=20):
+def updateDB(num):
     # result saves on disk
     TorrentsContainer(Content.MOVIES, num)
 
-def readDB(num=10):
+def readDB(num):
     # result saves on disk
     return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num)
 
 if __name__ == "__main__":
-    updateDB()
+    updateDB(20)
     print(readDB(20))

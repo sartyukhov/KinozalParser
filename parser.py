@@ -219,7 +219,6 @@ def getTorrentsList(**kwargs):
 
 if __name__ == "__main__":
     pass
-    # url = 'http://kinozal.tv/browse.php?s=%C1%E0%EC%E1%EB%E1%E8&g=0&c=13&v=0&d=2018&w=0&t=0&f=0'
     url = 'http://kinozal.tv/browse.php?s={s}&g=0&c=13&v=0&d=2018&w=0&t=0&f=0'.format(
         s=quote('Бамблби')
     )
