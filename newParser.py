@@ -79,9 +79,7 @@ class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, id, info):
         self.id = id
-        self.sizes    = []
-        self.kRatings = []
-        self.qualitys = []
+        self.mirrors = []
         self.__parseInfo(info)
         
     def __parseInfo(self, info):
@@ -111,12 +109,13 @@ class Torrent:
                 kRatings=True,
                 qualitys=True
             )
-            self.sizes.append(parsed.get('size', '?'))
-            self.kRatings.append(parsed.get('kRating', '?'))
-            self.qualitys.append(parsed.get('quality', '?'))
-        print(self.sizes)
-        print(self.kRatings)
-        print(self.qualitys)
+            self.mirrors.append(parsed)
+            print('{} : {} | {} | {}'.format(
+                self.name, 
+                parsed['size'],
+                parsed['quality'], 
+                parsed['kRating'])
+            )
 
 
 def parseTorrentsList(content):
@@ -135,21 +134,30 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
                 d['raturl'] = findResult[0][0]
                 d['rating'] = findResult[0][1]
                 break
+            else:
+                d['raturl'] = '?'
+                d['rating'] = '?'
 
     if sizes:
         findResult = findall(r'.*>Вес<span class=".*>.*\((.*)\)</span>.*', content)
         if len(findResult) > 0:
             d['size'] = str(round(((int(sub(',', '', findResult[0]))/1024)/1024)/1024, 2))
+        else:
+            d['size'] = '?'
 
     if kRatings:
         findResult = findall(r'.*<span itemprop="ratingValue">([^<]*).*', content)
         if len(findResult) > 0:
             d['kRating'] = findResult[0]
+        else:
+            d['kRating'] = '?'
 
     if qualitys:
-        findResult = findall(r'.*<b>Качество:</b>([^<]*).*', content)
+        findResult = findall(r'.*<b>Качество:</b>\s?([^<]*).*', content)
         if len(findResult) > 0:
-            d['quality'] = findResult[0]       
+            d['quality'] = findResult[0]    
+        else:
+            d['quality'] = '?'   
 
     return d
 
