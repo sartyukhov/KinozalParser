@@ -215,11 +215,11 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
 
 def updateDB(num):
     # result saves on disk
-    TorrentsContainer(Content.MOVIES, num)
+    TorrentsContainer(Content.MOVIES, num=num)
 
 def readDB(num):
     # result saves on disk
-    return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num)
+    return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num=num)
 
 if __name__ == "__main__":
     updateDB(20)
