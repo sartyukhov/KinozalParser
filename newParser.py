@@ -31,7 +31,7 @@ class Days(Enum):
 
 class TorrentsContainer:
     baseUrl = 'http://kinozal.tv/browse.php?'
-    def __init__(self, content, sort=Sort.PIRS):
+    def __init__(self, content, sort=Sort.PIRS, num=100):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.sort    = sort
@@ -44,10 +44,15 @@ class TorrentsContainer:
         torrents = parseTorrentsList(getUrlContent(url, name='page'))
         for t in torrents:
             self.appendUnique(Torrent(t[0], t[1]))
+            if len(self) >= num:
+                break
 
     def __iter__(self):
         return iter(self.files)
         
+    def __len__(self):
+        return len(self.files)
+
     def __contains__(self, item):
         for f in self.files:
             if f.name == item.name:
@@ -74,6 +79,8 @@ class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, id, info):
         self.id = id
+        self.sizes    = []
+        self.kRatings = []
         self.qualitys = []
         self.__parseInfo(info)
         
@@ -100,11 +107,15 @@ class Torrent:
             turl = self.baseUrl + m[0]
             parsed = parseTorrentPage(
                 getUrlContent(turl, name='tor_page'),
-                size=True,
-                kRating=True,
+                sizes=True,
+                kRatings=True,
                 qualitys=True
             )
+            self.sizes.append(parsed.get('size', '?'))
+            self.kRatings.append(parsed.get('kRating', '?'))
             self.qualitys.append(parsed.get('quality', '?'))
+        print(self.sizes)
+        print(self.kRatings)
         print(self.qualitys)
 
 
@@ -113,45 +124,37 @@ def parseTorrentsList(content):
     fp = r'.*class="nam"><a href=".*/details.php\?id=(\d+).*">(.*)</a>.*>'
     return findall(fp, content)
 
-def parseTorrentPage(content, rating=False, size=False, kRating=False, qualitys=False):
+def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, qualitys=False):
     d = dict()
 
     if rating:
         for db in ('IMDb', 'Кинопоиск'):
-            pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>'.format(db)
+            pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>.*'.format(db)
             findResult = findall(pattern, content)
             if len(findResult) > 0:
                 d['raturl'] = findResult[0][0]
                 d['rating'] = findResult[0][1]
                 break
 
-    if size:
-        findResult = findall(r'.*>Вес<span class=".*>(.*)\(.*\)</span>', content)
+    if sizes:
+        findResult = findall(r'.*>Вес<span class=".*>.*\((.*)\)</span>.*', content)
         if len(findResult) > 0:
-            d['size'] = findResult[0]
+            d['size'] = str(round(((int(sub(',', '', findResult[0]))/1024)/1024)/1024, 2))
 
-    if kRating:
-        findResult = findall(r'.*<span itemprop="ratingValue">(.*)</span>', content)
+    if kRatings:
+        findResult = findall(r'.*<span itemprop="ratingValue">([^<]*).*', content)
         if len(findResult) > 0:
             d['kRating'] = findResult[0]
 
     if qualitys:
-        findResult = findall(r'.*<b>Качество:</b>(.*)<br>', content)
+        findResult = findall(r'.*<b>Качество:</b>([^<]*).*', content)
         if len(findResult) > 0:
             d['quality'] = findResult[0]       
 
     return d
 
 def updateDB():
-    moviesContainer = TorrentsContainer(Content.MOVIES)
-
-    
-
-
-
+    moviesContainer = TorrentsContainer(Content.MOVIES, num=5)
 
 if __name__ == "__main__":
     updateDB()
-    # c = getUrlContent('surl', name='self_page')
-    # selfs = findall(r'.*href="/details.php\?id=(\d+).*', c)
-    # print(selfs)
