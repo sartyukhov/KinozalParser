@@ -6,25 +6,25 @@ from enum           import Enum
 from urlOpener      import getUrlContent
 
 #select file
-class Content(Enum):
+class Content():
     TV_SHOWS = '1001'
     MOVIES   = '1002'
     CARTOONS = '1003'
 
 #select quality
-class Quality(Enum):
+class Quality():
     _4K    = '7'
     _1080P = '3'
     _720P  = '3'
 
 #select sort
-class Sort(Enum):
+class Sort():
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
 #select days
-class Days(Enum):
+class Days():
     ANY = '0'
     _1  = '1'
     _3  = '3'
@@ -95,11 +95,12 @@ class Torrent:
 
     def serachMirrors(self, content, sort=Sort.SIZE):
         surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
-            s=quote(self.name),
+            s=quote(self.name + ' ' + self.year),
             c=content,
-            d=self.year,
+            d=0,# year in name
             t=sort
         )
+        print(surl)
         mirrors = parseTorrentsList(getUrlContent(surl, name='mirrors_page'))
         for m in mirrors:
             turl = self.baseUrl + m[0]
