@@ -95,9 +95,33 @@ class TorrentsContainer:
             print('[L]: {} database on disk update failed'.format(dumpName))
             print('[E]: ' + str(e))
 
+    def getListOfFiles(self, num):
+        t = ''
+        counter = 0
+        for f in self.files:
+            counter += 1
+            t += '{N}: {n}\n[Rating: {r}]({ru})\n'.format(
+                N=counter, 
+                n=f.name, 
+                ru=f.raturl,
+                r=f.rating
+            )
+            if len(f.mirrors) > 0:
+                m = f.mirrors[0]
+                t += '[{q} {s}Gb {k}/10]({u})\n'.format(
+                    s=m['size'],
+                    q=m['quality'],
+                    k=m['kRating'],
+                    u=m['url']
+                )
+            if counter >= num:
+                break
+            t += '~' * 15 + '\n'
+        t += strftime('\n\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
+        return t
+
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
-
 
 class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
@@ -115,8 +139,8 @@ class Torrent:
     def downloadMoreInfo(self):
         turl = self.baseUrl + self.id
         parsed = parseTorrentPage(getUrlContent(turl, name='tor_page'), rating=True)
-        self.imdbUrl    = parsed.get('raturl', '?')
-        self.imdbRating = parsed.get('rating', '?')
+        self.raturl = parsed.get('raturl', '?')
+        self.rating = parsed.get('rating', '?')
 
     def serachMirrors(self, sort=Sort.SIZE):
         surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
@@ -187,11 +211,14 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
 
     return d
 
-def updateDB():
-    moviesContainer = TorrentsContainer(Content.MOVIES, num=5)
+def updateDB(num=20):
+    # result saves on disk
+    TorrentsContainer(Content.MOVIES, num)
+
+def readDB(num=10):
+    # result saves on disk
+    return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num)
 
 if __name__ == "__main__":
     updateDB()
-    # moviesContainer = TorrentsContainer.load(Content.MOVIES)
-    # for f in moviesContainer.files:
-    #     print(f.name)
+    print(readDB(20))
