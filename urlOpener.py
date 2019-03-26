@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 from urllib.request import urlopen
 from sys            import platform
 from os.path        import dirname, abspath
