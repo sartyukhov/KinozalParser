@@ -31,21 +31,35 @@ class Days():
 
 class TorrentsContainer:
     baseUrl = 'http://kinozal.tv/browse.php?'
-    def __init__(self, content, sort=Sort.PIRS, num=100):
+
+    @classmethod
+    def load(cls, content):
+        dumpName = content + '.db'
+        try:
+            with open(dumpName, 'rb') as db:
+                old = load(db)
+                print('[L]: {} database loaded'.format(dumpName))
+                return old
+        except Exception as e:
+            print('[L]: {} database load failed'.format(dumpName))
+            print('[E]: ' + str(e))
+
+    def __init__(self, content, sort=Sort.PIRS, num=100, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
-        self.sort    = sort
         self.files   = []
         #update container with content
         url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page=0'.format(
-            c=self.content,
-            t=self.sort
+            c=content,
+            t=sort
         )        
         torrents = parseTorrentsList(getUrlContent(url, name='page'))
         for t in torrents:
-            self.appendUnique(Torrent(t[0], t[1]))
+            self.appendUnique(Torrent(t[0], t[1], content))
             if len(self) >= num:
                 break
+        if dump:
+            self.dump()
 
     def __iter__(self):
         return iter(self.files)
@@ -59,6 +73,11 @@ class TorrentsContainer:
                 return True
         return False
 
+    def append(self, item):
+        item.downloadMoreInfo()
+        item.serachMirrors()
+        self.files.append(item)
+
     def appendUnique(self, item):
         if item in self:
             return False
@@ -66,10 +85,15 @@ class TorrentsContainer:
             self.append(item)
             return True
 
-    def append(self, item):
-        item.getMoreInfo()
-        item.serachMirrors(self.content)
-        self.files.append(item)
+    def dump(self):
+        dumpName = self.content + '.db'
+        try:
+            with open(dumpName, 'wb') as db:
+                dump(self, db)
+                print('[L]: {} database on disk updated'.format(dumpName))
+        except Exception as e:
+            print('[L]: {} database on disk update failed'.format(dumpName))
+            print('[E]: ' + str(e))
 
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
@@ -77,8 +101,9 @@ class TorrentsContainer:
 
 class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
-    def __init__(self, id, info):
+    def __init__(self, id, info, content):
         self.id = id
+        self.content = content
         self.mirrors = []
         self.__parseInfo(info)
         
@@ -87,16 +112,16 @@ class Torrent:
         self.name = search(r'[^/]*', info).group()
         self.year = search(r'[0-9]{4}(-[0-9]{4})?', info).group()
 
-    def getMoreInfo(self):
+    def downloadMoreInfo(self):
         turl = self.baseUrl + self.id
         parsed = parseTorrentPage(getUrlContent(turl, name='tor_page'), rating=True)
         self.imdbUrl    = parsed.get('raturl', '?')
         self.imdbRating = parsed.get('rating', '?')
 
-    def serachMirrors(self, content, sort=Sort.SIZE):
+    def serachMirrors(self, sort=Sort.SIZE):
         surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
-            c=content,
+            c=self.content,
             d=0,# year in name
             t=sort
         )
@@ -110,6 +135,7 @@ class Torrent:
                 kRatings=True,
                 qualitys=True
             )
+            parsed['url'] = turl
             self.mirrors.append(parsed)
             print('{} : {} | {} | {}'.format(
                 self.name, 
@@ -120,7 +146,6 @@ class Torrent:
 
 
 def parseTorrentsList(content):
-    # parsing (yeah, just one string)
     fp = r'.*class="nam"><a href=".*/details.php\?id=(\d+).*">(.*)</a>.*>'
     return findall(fp, content)
 
@@ -156,9 +181,9 @@ def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, quality
     if qualitys:
         findResult = findall(r'.*<b>Качество:</b>\s?([^<]*).*', content)
         if len(findResult) > 0:
-            d['quality'] = findResult[0]    
+            d['quality'] = findResult[0]
         else:
-            d['quality'] = '?'   
+            d['quality'] = '?'
 
     return d
 
@@ -167,3 +192,6 @@ def updateDB():
 
 if __name__ == "__main__":
     updateDB()
+    # moviesContainer = TorrentsContainer.load(Content.MOVIES)
+    # for f in moviesContainer.files:
+    #     print(f.name)
