@@ -47,12 +47,13 @@ class TorrentsContainer:
             print('[L]: {} database load failed'.format(dumpName))
             print('[E]: ' + str(e))
 
-    def __init__(self, content, num=100, sort=Sort.PIRS, dump=True):
+    def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.files   = []
         #update container with content
         for page in range(self.MAX_PAGES):
+            print('[L]: Parsing page ' + str(page))
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
                 c=content,
                 t=sort,
@@ -67,6 +68,7 @@ class TorrentsContainer:
                 break
         if dump:
             self.dump()
+        print('[L]: Init done in {} seconds'.format(time() - self.created))
 
     def __iter__(self):
         return iter(self.files)
@@ -84,6 +86,7 @@ class TorrentsContainer:
         item.downloadMoreInfo()
         item.serachMirrors()
         self.files.append(item)
+        print('[L]: {} files in container'.format(len(self)))
 
     def appendUnique(self, item):
         if item in self:
@@ -231,5 +234,5 @@ def readDB(num):
 
 if __name__ == "__main__":
     # updateDB(20)
-    # print(readDB(20))
+    # print(readDB(20)))
     print(ceil(10/50))
