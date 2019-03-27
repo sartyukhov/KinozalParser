@@ -5,7 +5,12 @@ from urllib.parse               import quote
 from re                         import findall, search, sub
 from pickle                     import dump, load
 from time                       import time, gmtime, strftime
-from kinozalParser.urlOpener    import getUrlContent
+from urlHandler.urlOpener       import getUrlContent
+import logging
+
+FORMAT =u'[%(asctime)s][%(name)-6s %(levelname)-8s]: %(message)s'
+logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=u'%H:%M:%S')
+log = logging.getLogger('parser')
 
 #select file
 class Content():
@@ -41,11 +46,10 @@ class TorrentsContainer:
         try:
             with open(dumpName, 'rb') as db:
                 old = load(db)
-                print('[L]: {} database loaded'.format(dumpName))
+                log.debug('{} database loaded'.format(dumpName))
                 return old
         except Exception as e:
-            print('[L]: {} database load failed'.format(dumpName))
-            print('[E]: ' + str(e))
+            log.exception('{} database load failed\n{}'.format(dumpName, str(e)))
 
     def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
@@ -53,7 +57,7 @@ class TorrentsContainer:
         self.files   = []
         #update container with content
         for page in range(self.MAX_PAGES):
-            print('[L]: Parsing page ' + str(page))
+            log.debug('Parsing page ' + str(page))
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
                 c=content,
                 t=sort,
@@ -68,7 +72,7 @@ class TorrentsContainer:
                 break
         if dump:
             self.dump()
-        print('[L]: Init done in {} seconds'.format(time() - self.created))
+        log.debug('Init done in {} seconds'.format(time() + 10800 - self.created))
 
     def __iter__(self):
         return iter(self.files)
@@ -86,7 +90,7 @@ class TorrentsContainer:
         item.downloadMoreInfo()
         item.serachMirrors()
         self.files.append(item)
-        print('[L]: {} files in container'.format(len(self)))
+        log.debug('{} files in container'.format(len(self)))
 
     def appendUnique(self, item):
         if item in self:
@@ -100,10 +104,9 @@ class TorrentsContainer:
         try:
             with open(dumpName, 'wb') as db:
                 dump(self, db)
-                print('[L]: {} database on disk updated'.format(dumpName))
+                log.debug('{} database on disk updated'.format(dumpName))
         except Exception as e:
-            print('[L]: {} database on disk update failed'.format(dumpName))
-            print('[E]: ' + str(e))
+            log.exception('{} database on disk update failed\n{}'.format(dumpName, str(e)))
 
     def getListOfFiles(self, num):
         t = ''
@@ -161,7 +164,6 @@ class Torrent:
             d=0,# year in name
             t=sort
         )
-        print(surl)
         mirrors = parseTorrentsList(getUrlContent(surl, name='mirrors_page'))
         for m in mirrors:
             turl = self.baseUrl + m[0]
@@ -173,7 +175,7 @@ class Torrent:
             )
             parsed['url'] = turl
             self.mirrors.append(parsed)
-            print('{} : {} | {} | {}'.format(
+            log.debug('{} : {} | {} | {}'.format(
                 self.name,
                 parsed['size'],
                 parsed['quality'],
@@ -233,6 +235,4 @@ def readDB(num):
     return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num=num)
 
 if __name__ == "__main__":
-    # updateDB(20)
-    # print(readDB(20)))
-    print(ceil(10/50))
+    pass

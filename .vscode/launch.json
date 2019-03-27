@@ -10,13 +10,6 @@
             "request": "launch",
             "module": "parser",
             "console": "integratedTerminal"
-        },
-        {
-            "name": "Debug newParser (Integrated Terminal)",
-            "type": "python",
-            "request": "launch",
-            "module": "newParser",
-            "console": "integratedTerminal"
-        },
+        }
     ]
 }
