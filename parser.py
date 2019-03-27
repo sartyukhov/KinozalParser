@@ -8,7 +8,7 @@ from time                       import time, gmtime, strftime
 from urlHandler.urlOpener       import getUrlContent
 import logging
 
-FORMAT =u'[%(asctime)s][%(name)-6s %(levelname)-8s]: %(message)s'
+FORMAT =u'[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=u'%H:%M:%S')
 log = logging.getLogger('parser')
 
@@ -235,4 +235,12 @@ def readDB(num):
     return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num=num)
 
 if __name__ == "__main__":
-    pass
+    content = getUrlContent('turl', name='page')
+    # id=1692289" class="r1">Бамблби / Bumblebee / 2018 / 2 x ПМ / WEB-DL (1080p)</a><td class='s'>8</td>
+    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
+    fp += r'.* / (.*)</a>.*\n'
+    fp += r'<td class=\'s\'>(.*)</td>\n'
+    fp += r'<td class=\'sl_s\'>(\d*)</td>\n'
+    fp += r'<td class=\'sl_p\'>(\d*)</td>\n'
+    fp += r'<td class=\'s\'>(.*)</td>\n'
+    print(findall(fp, content))
