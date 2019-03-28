@@ -112,12 +112,10 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {n}\n[{rn}: {r}]({ru})\n'.format(
+            t += '{N}: {n}\n{url}'.format(
                 N  = counter,
                 n  = f.name,
-                rn = f.ratsrc,
-                ru = f.raturl,
-                r  = f.rating
+                url= f.ratingUrl
             )
             if len(f.mirrors) > 0:
                 m = f.mirrors[0]
@@ -148,12 +146,23 @@ class Torrent:
         self.uploaded = args[7]
         self.mirrors  = []
 
+    def __getRatingUrl(self):
+        if self.rating != '?':
+            return '[{rn}: {r}]({ru})\n'.format(
+                rn = self.ratsrc,
+                ru = self.raturl,
+                r  = self.rating
+            )
+        else:
+            return ''
+
     def downloadMoreInfo(self):
         parsed = parseTorrentPage(getUrlContent(self.baseUrl + self.id, name='tor_page'), 
             rating=True)
         self.ratsrc = parsed.get('ratsrc', '?')
         self.raturl = parsed.get('raturl', '?')
         self.rating = parsed.get('rating', '?')
+        self.ratingUrl = self.__getRatingUrl()
 
     def serachMirrors(self, sort=Sort.SIZE):
         self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
