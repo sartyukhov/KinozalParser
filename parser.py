@@ -63,9 +63,8 @@ class TorrentsContainer:
                 t=sort,
                 p=str(page)
             )
-            torrents = parseTorrentsList(getUrlContent(url, name='page'))
-            for t in torrents:
-                self.appendUnique(Torrent(t[0], t[1], content))
+            for t in parseTorrentsList(getUrlContent(url, name='page')):
+                self.appendUnique(Torrent(content, t))
                 if len(self) >= num:
                     break
             if len(self) >= num:
@@ -114,20 +113,20 @@ class TorrentsContainer:
         for f in self.files:
             counter += 1
             t += '{N}: {n}\n[{rn}: {r}]({ru})\n'.format(
-                N=counter,
-                n=f.name,
-                rn=f.ratsrc,
-                ru=f.raturl,
-                r=f.rating
+                N  = counter,
+                n  = f.name,
+                rn = f.ratsrc,
+                ru = f.raturl,
+                r  = f.rating
             )
             if len(f.mirrors) > 0:
                 m = f.mirrors[0]
-                t += 'Best: [{q} {s}Gb {k}/10]({u})\n'.format(
-                    s=m['size'],
-                    q=m['quality'],
-                    k=m['kRating'],
-                    u=m['url']
+                t += 'Best: [{q} {s}]({u})\n'.format(
+                    s = m[4],
+                    q = m[3],
+                    u = m[8]
                 )
+                t += '[Other mirrors]({u})\n'.format(u=f.surl)
             if counter >= num:
                 break
             t += '~' * 15 + '\n'
@@ -139,51 +138,45 @@ class TorrentsContainer:
 
 class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
-    def __init__(self, id, info, content):
-        self.id = id
-        self.content = content
-        self.mirrors = []
-        self.__parseInfo(info)
-
-    def __parseInfo(self, info):
-        info = sub(' / ', '/', info)
-        self.name = search(r'[^/]*', info).group()
-        self.year = search(r'[0-9]{4}(-[0-9]{4})?', info).group()
+    def __init__(self, content, args):
+        self.content  = content
+        self.id       = args[0]
+        self.name     = args[1]
+        self.year     = args[2]
+        self.sids     = args[5]
+        self.pirs     = args[6]
+        self.uploaded = args[7]
+        self.mirrors  = []
 
     def downloadMoreInfo(self):
-        turl = self.baseUrl + self.id
-        parsed = parseTorrentPage(getUrlContent(turl, name='tor_page'), rating=True)
+        parsed = parseTorrentPage(getUrlContent(self.baseUrl + self.id, name='tor_page'), 
+            rating=True)
         self.ratsrc = parsed.get('ratsrc', '?')
         self.raturl = parsed.get('raturl', '?')
         self.rating = parsed.get('rating', '?')
 
     def serachMirrors(self, sort=Sort.SIZE):
-        surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
+        self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
             c=self.content,
             d=0,# year in name
             t=sort
         )
-        mirrors = parseTorrentsList(getUrlContent(surl, name='mirrors_page'))
+        mirrors = parseTorrentsList(getUrlContent(self.surl, name='mirrors_page'))
         for m in mirrors:
-            turl = self.baseUrl + m[0]
-            parsed = parseTorrentPage(
-                getUrlContent(turl, name='tor_page'),
-                sizes=True,
-                kRatings=True,
-                qualitys=True
-            )
-            parsed['url'] = turl
-            self.mirrors.append(parsed)
-            log.debug('{} : {} | {} | {}'.format(
-                self.name,
-                parsed['size'],
-                parsed['quality'],
-                parsed['kRating']
-            ))
+            m = list(m)
+            m.append(self.baseUrl + m[0])
+            self.mirrors.append(m)
+            log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
 def parseTorrentsList(content):
-    fp = r'.*class="nam"><a href=".*/details.php\?id=(\d+).*">(.*)</a>.*>'
+    content = content.replace('\'', '\"')
+    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
+    fp += r'.* / (.*)</a>.*\n'
+    fp += r'<td class="s">(.*)</td>\n'
+    fp += r'<td class="sl_s">(\d*)</td>\n'
+    fp += r'<td class="sl_p">(\d*)</td>\n'
+    fp += r'<td class="s">(.*)</td>\n'
     return findall(fp, content)
 
 def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, qualitys=False):
@@ -235,12 +228,12 @@ def readDB(num):
     return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num=num)
 
 if __name__ == "__main__":
-    content = getUrlContent('turl', name='page')
+    content = getUrlContent('turl', name='mirrors_page').replace('\'', '\"')
     # id=1692289" class="r1">Бамблби / Bumblebee / 2018 / 2 x ПМ / WEB-DL (1080p)</a><td class='s'>8</td>
     fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
     fp += r'.* / (.*)</a>.*\n'
-    fp += r'<td class=\'s\'>(.*)</td>\n'
-    fp += r'<td class=\'sl_s\'>(\d*)</td>\n'
-    fp += r'<td class=\'sl_p\'>(\d*)</td>\n'
-    fp += r'<td class=\'s\'>(.*)</td>\n'
+    fp += r'<td class="s">(.*)</td>\n'
+    fp += r'<td class="sl_s">(\d*)</td>\n'
+    fp += r'<td class="sl_p">(\d*)</td>\n'
+    fp += r'<td class="s">(.*)</td>\n'
     print(findall(fp, content))
