@@ -5,7 +5,7 @@ from urllib.parse               import quote
 from re                         import findall, search, sub
 from pickle                     import dump, load
 from time                       import time, gmtime, strftime
-from urlHandler.urlOpener       import getUrlContent
+from urlHandler.urlOpener       import getUrlData
 import logging
 
 FORMAT =u'[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
@@ -14,9 +14,15 @@ log = logging.getLogger('parser')
 
 #select file
 class Content():
-    TV_SHOWS = '1001'
-    MOVIES   = '1002'
-    CARTOONS = '1003'
+    def __init__(self, id, name):
+        self.id   = id
+        self.name = name
+
+serials     = Content('1001', 'Все сериалы')
+movies      = Content('1002', 'Все фильмы')
+cartoons    = Content('1003', 'Все мульты')
+serials_RUS = Content('45', 'Сериал - Русский')
+serials_BUR = Content('46', 'Сериал - Буржуйский')
 
 #select quality
 class Quality():
@@ -42,28 +48,28 @@ class TorrentsContainer:
 
     @classmethod
     def load(cls, content):
-        dumpName = content + '.db'
+        dumpName = content.id + '.db'
         try:
             with open(dumpName, 'rb') as db:
                 old = load(db)
                 log.debug('{} database loaded'.format(dumpName))
                 return old
         except Exception as e:
-            log.exception('{} database load failed\n{}'.format(dumpName, str(e)))
+            log.exception('{} database load failed'.format(dumpName))
 
     def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.files   = []
-        #update container with content
+        #update container 
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
-                c=content,
+                c=content.id,
                 t=sort,
                 p=str(page)
             )
-            for t in parseTorrentsList(getUrlContent(url, name='page')):
+            for t in parseTorrentsList(getUrlData(url, name='page')):
                 self.appendUnique(Torrent(content, t))
                 if len(self) >= num:
                     break
@@ -99,13 +105,13 @@ class TorrentsContainer:
             return True
 
     def dump(self):
-        dumpName = self.content + '.db'
+        dumpName = self.content.id + '.db'
         try:
             with open(dumpName, 'wb') as db:
                 dump(self, db)
                 log.debug('{} database on disk updated'.format(dumpName))
         except Exception as e:
-            log.exception('{} database on disk update failed\n{}'.format(dumpName, str(e)))
+            log.exception('{} database on disk update failed'.format(dumpName))
 
     def getListOfFiles(self, num):
         t = ''
@@ -157,8 +163,7 @@ class Torrent:
             return ''
 
     def downloadMoreInfo(self):
-        parsed = parseTorrentPage(getUrlContent(self.baseUrl + self.id, name='tor_page'), 
-            rating=True)
+        parsed = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
         self.ratsrc = parsed.get('ratsrc', '?')
         self.raturl = parsed.get('raturl', '?')
         self.rating = parsed.get('rating', '?')
@@ -167,82 +172,52 @@ class Torrent:
     def serachMirrors(self, sort=Sort.SIZE):
         self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
-            c=self.content,
+            c=self.content.id,
             d=0,# year in name
             t=sort
         )
-        mirrors = parseTorrentsList(getUrlContent(self.surl, name='mirrors_page'))
-        for m in mirrors:
+        for m in parseTorrentsList(getUrlData(self.surl, name='mirrors_page')):
             m = list(m)
             m.append(self.baseUrl + m[0])
             self.mirrors.append(m)
             log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
-def parseTorrentsList(content):
-    content = content.replace('\'', '\"')
+def parseTorrentsList(data):
+    data = data.replace('\'', '\"')
     fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
     fp += r'.* / (.*)</a>.*\n'
     fp += r'<td class="s">(.*)</td>\n'
     fp += r'<td class="sl_s">(\d*)</td>\n'
     fp += r'<td class="sl_p">(\d*)</td>\n'
     fp += r'<td class="s">(.*)</td>\n'
-    return findall(fp, content)
+    return findall(fp, data)
 
-def parseTorrentPage(content, rating=False, sizes=False, kRatings=False, qualitys=False):
+def parseTorrentPage(data):
     d = dict()
 
-    if rating:
-        for db in ('IMDb', 'Кинопоиск'):
-            pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>.*'.format(db)
-            findResult = findall(pattern, content)
-            if len(findResult) > 0:
-                d['ratsrc'] = db
-                d['raturl'] = findResult[0][0]
-                d['rating'] = findResult[0][1]
-                break
-            else:
-                d['ratsrc'] = '?'
-                d['raturl'] = '?'
-                d['rating'] = '?'
-
-    if sizes:
-        findResult = findall(r'.*>Вес<span class=".*>.*\((.*)\)</span>.*', content)
+    for db in ('IMDb', 'Кинопоиск'):
+        pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>.*'.format(db)
+        findResult = findall(pattern, data)
         if len(findResult) > 0:
-            d['size'] = str(round(((int(sub(',', '', findResult[0]))/1024)/1024)/1024, 2))
+            d['ratsrc'] = db
+            d['raturl'] = findResult[0][0]
+            d['rating'] = findResult[0][1]
+            break
         else:
-            d['size'] = '?'
-
-    if kRatings:
-        findResult = findall(r'.*<span itemprop="ratingValue">([^<]*).*', content)
-        if len(findResult) > 0:
-            d['kRating'] = findResult[0]
-        else:
-            d['kRating'] = '?'
-
-    if qualitys:
-        findResult = findall(r'.*<b>Качество:</b>\s?([^<]*).*', content)
-        if len(findResult) > 0:
-            d['quality'] = findResult[0]
-        else:
-            d['quality'] = '?'
+            d['ratsrc'] = '?'
+            d['raturl'] = '?'
+            d['rating'] = '?'
 
     return d
 
 def updateDB():
     # result saves on disk
-    TorrentsContainer(Content.MOVIES)
+    TorrentsContainer(movies)
 
 def readDB(num):
     # result saves on disk
-    return TorrentsContainer.load(Content.MOVIES).getListOfFiles(num=num)
+    return TorrentsContainer.load(movies).getListOfFiles(num=num)
 
 if __name__ == "__main__":
-    content = getUrlContent('turl', name='mirrors_page').replace('\'', '\"')
-    # id=1692289" class="r1">Бамблби / Bumblebee / 2018 / 2 x ПМ / WEB-DL (1080p)</a><td class='s'>8</td>
-    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
-    fp += r'.* / (.*)</a>.*\n'
-    fp += r'<td class="s">(.*)</td>\n'
-    fp += r'<td class="sl_s">(\d*)</td>\n'
-    fp += r'<td class="sl_p">(\d*)</td>\n'
-    fp += r'<td class="s">(.*)</td>\n'
-    print(findall(fp, content))
+    pass
+    print(movies)
