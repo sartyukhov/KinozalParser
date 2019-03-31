@@ -2,27 +2,45 @@
 # -*- coding: utf-8 -*-
 
 from urllib.parse               import quote
-from re                         import findall, search, sub
+from re                         import findall
 from pickle                     import dump, load
 from time                       import time, gmtime, strftime
 from urlHandler.urlOpener       import getUrlData
+from sys                        import platform
+from os.path                    import dirname, abspath
 import logging
 
 FORMAT =u'[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
 logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=u'%H:%M:%S')
 log = logging.getLogger('parser')
 
+if platform == 'linux':
+    SLASH = '/'
+else:
+    SLASH = '\\'
+
+SPATH = dirname(abspath(__file__))
+
 #select file
 class Content():
     def __init__(self, id, name):
-        self.id   = id
-        self.name = name
+        self.id       = id
+        self.name     = name
+        self.dumpName = SPATH + SLASH + self.id + '.db'
 
 serials     = Content('1001', 'Все сериалы')
 movies      = Content('1002', 'Все фильмы')
 cartoons    = Content('1003', 'Все мульты')
 serials_RUS = Content('45', 'Сериал - Русский')
 serials_BUR = Content('46', 'Сериал - Буржуйский')
+
+CONTENT_LIST = (
+    serials, 
+    movies, 
+    cartoons, 
+    serials_RUS, 
+    serials_BUR
+)
 
 #select quality
 class Quality():
@@ -48,14 +66,13 @@ class TorrentsContainer:
 
     @classmethod
     def load(cls, content):
-        dumpName = content.id + '.db'
         try:
-            with open(dumpName, 'rb') as db:
+            with open(content.dumpName, 'rb') as db:
                 old = load(db)
-                log.debug('{} database loaded'.format(dumpName))
+                log.debug('{} database loaded'.format(content.dumpName))
                 return old
         except Exception as e:
-            log.exception('{} database load failed'.format(dumpName))
+            log.exception('{} database load failed'.format(content.dumpName))
 
     def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
@@ -105,13 +122,12 @@ class TorrentsContainer:
             return True
 
     def dump(self):
-        dumpName = self.content.id + '.db'
         try:
-            with open(dumpName, 'wb') as db:
+            with open(self.content.dumpName, 'wb') as db:
                 dump(self, db)
-                log.debug('{} database on disk updated'.format(dumpName))
+                log.debug('{} database on disk updated'.format(self.content.dumpName))
         except Exception as e:
-            log.exception('{} database on disk update failed'.format(dumpName))
+            log.exception('{} database on disk update failed'.format(self.content.dumpName))
 
     def getListOfFiles(self, num):
         t = ''
@@ -212,12 +228,12 @@ def parseTorrentPage(data):
 
 def updateDB():
     # result saves on disk
-    TorrentsContainer(movies)
+    for c in CONTENT_LIST:
+        TorrentsContainer(c)
 
 def readDB(num):
     # result saves on disk
     return TorrentsContainer.load(movies).getListOfFiles(num=num)
 
 if __name__ == "__main__":
-    pass
-    print(movies)
+    updateDB()
