@@ -200,12 +200,12 @@ class Torrent:
 
 def parseTorrentsList(data):
     data = data.replace('\'', '\"')
-    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
-    fp += r'.* / (.*)</a>.*\n'
-    fp += r'<td class="s">(.*)</td>\n'
-    fp += r'<td class="sl_s">(\d*)</td>\n'
-    fp += r'<td class="sl_p">(\d*)</td>\n'
-    fp += r'<td class="s">(.*)</td>\n'
+    fp = r'''.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})
+        .* / (.*)</a>.*\n
+        <td class="s">(.*)</td>\n
+        <td class="sl_s">(\d*)</td>\n
+        <td class="sl_p">(\d*)</td>\n
+        <td class="s">(.*)</td>\n'''
     return findall(fp, data)
 
 def parseTorrentPage(data):
