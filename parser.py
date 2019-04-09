@@ -57,15 +57,16 @@ class TorrentsContainer:
         except Exception as e:
             log.exception('{} database load failed'.format(dumpName))
 
-    def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
+    def __init__(self, content, num=30, days=Days._3, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.files   = []
         #update container 
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
-            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
+            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
                 c=content.id,
+                w=days,
                 t=sort,
                 p=str(page)
             )
