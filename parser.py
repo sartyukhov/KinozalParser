@@ -3,7 +3,7 @@
 
 from urllib.parse               import quote
 from re                         import findall
-from pickle                     import dump, load
+from pickle                     import dump, load, dumps
 from time                       import time, gmtime, strftime
 from urlHandler.urlOpener       import getUrlData
 from sys                        import platform
@@ -21,12 +21,19 @@ else:
 
 SPATH = dirname(abspath(__file__))
 
-#select file
+'''
+@ name        | Content
+@ type        | Class
+@ description | Type of parsed data 
+'''
 class Content():
     def __init__(self, id, name):
         self.id       = id
         self.name     = name
         self.dumpName = SPATH + SLASH + self.id + '.db'
+    
+    def get_b(self):
+        return dumps(self)
 
 serials     = Content('1001', 'Все сериалы')
 movies      = Content('1002', 'Все фильмы')
@@ -42,24 +49,41 @@ CONTENT_LIST = (
     serials_BUR
 )
 
-#select quality
+'''
+@ name        | Quality
+@ type        | Class
+@ description | Type of data quality
+'''
 class Quality():
     _4K    = '7'
     _1080P = '3'
     _720P  = '3'
 
-#select sort
+'''
+@ name        | Sort
+@ type        | Class
+@ description | Select how to sort content
+'''
 class Sort():
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
-#select days
+'''
+@ name        | Days
+@ type        | Class
+@ description | Select freshness of data
+'''
 class Days():
     ANY = '0'
     _1  = '1'
     _3  = '3'
 
+'''
+@ name        | TorrentsContainer
+@ type        | Class
+@ description | Collects torrents inside (array-like)
+'''
 class TorrentsContainer:
     MAX_PAGES = 5
     baseUrl = 'http://kinozal.tv/browse.php?'
@@ -156,6 +180,11 @@ class TorrentsContainer:
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
 
+'''
+@ name        | Torrent
+@ type        | Class
+@ description | One torrent page's data
+'''
 class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, content, args):
@@ -198,6 +227,11 @@ class Torrent:
             self.mirrors.append(m)
             log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
+'''
+@ name        | parseTorrentsList
+@ type        | Function
+@ description | Parse html page (search result) and find all torrents (+ data)
+'''
 def parseTorrentsList(data):
     data = data.replace('\'', '\"')
     fp = r'''.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})
@@ -208,6 +242,11 @@ def parseTorrentsList(data):
         <td class="s">(.*)</td>\n'''
     return findall(fp, data)
 
+'''
+@ name        | parseTorrentPage
+@ type        | Function
+@ description | Parse html page (torrent page) and find ratings
+'''
 def parseTorrentPage(data):
     d = dict()
 
