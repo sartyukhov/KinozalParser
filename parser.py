@@ -5,14 +5,12 @@ from urllib.parse               import quote
 from re                         import findall
 from pickle                     import dump, load, dumps
 from time                       import time, gmtime, strftime
-from urlHandler.urlOpener       import getUrlData
 from sys                        import platform
 from os.path                    import dirname, abspath
-import logging
+from logger                     import logger
+from urlHandler.urlOpener       import getUrlData
 
-FORMAT =u'[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
-logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=u'%H:%M:%S')
-log = logging.getLogger('parser')
+log = logger.getLogger('parser')
 
 if platform == 'linux':
     SLASH = '/'
