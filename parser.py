@@ -9,6 +9,7 @@ from sys                        import platform
 from os.path                    import dirname, abspath
 from logger                     import logger
 from urlHandler.urlOpener       import getUrlData
+from dbHandler                  import contentDB
 
 log = logger.getLogger('parser')
 
@@ -18,34 +19,6 @@ else:
     SLASH = '\\'
 
 SPATH = dirname(abspath(__file__))
-
-'''
-@ name        | Content
-@ type        | Class
-@ description | Type of parsed data 
-'''
-class Content():
-    def __init__(self, id, name):
-        self.id       = id
-        self.name     = name
-        self.dumpName = SPATH + SLASH + self.id + '.db'
-    
-    def get_b(self):
-        return dumps(self)
-
-serials     = Content('1001', 'Все сериалы')
-movies      = Content('1002', 'Все фильмы')
-cartoons    = Content('1003', 'Все мульты')
-serials_RUS = Content('45', 'Сериал - Русский')
-serials_BUR = Content('46', 'Сериал - Буржуйский')
-
-CONTENT_LIST = (
-    serials, 
-    movies, 
-    cartoons, 
-    serials_RUS, 
-    serials_BUR
-)
 
 '''
 @ name        | Quality
@@ -88,13 +61,14 @@ class TorrentsContainer:
 
     @classmethod
     def load(cls, content):
+        contentFileName = SPATH + SLASH + content + '.db'
         try:
-            with open(content.dumpName, 'rb') as db:
+            with open(contentFileName, 'rb') as db:
                 old = load(db)
-                log.debug('{} database loaded'.format(content.dumpName))
+                log.debug('{} database loaded'.format(content))
                 return old
         except Exception as e:
-            log.exception('{} database load failed'.format(content.dumpName))
+            log.exception('{} database load failed'.format(content))
 
     def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
@@ -212,7 +186,7 @@ class Torrent:
         self.rating = parsed.get('rating', '?')
         self.ratingUrl = self.__getRatingUrl()
 
-    def serachMirrors(self, sort=Sort.SIZE):
+    def searchMirrors(self, sort=Sort.SIZE):
         self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
             c=self.content.id,
@@ -263,14 +237,15 @@ def parseTorrentPage(data):
 
     return d
 
+'''
+@ name        | updateDB
+@ type        | Function
+@ description | Update cids in content data base
+'''
 def updateDB():
     # result saves on disk
-    for c in CONTENT_LIST:
-        TorrentsContainer(c)
-
-def readDB(num):
-    # result saves on disk
-    return TorrentsContainer.load(movies).getListOfFiles(num=num)
+    for cid in contentDB.getCidList():
+        TorrentsContainer(cid)
 
 if __name__ == "__main__":
     updateDB()
