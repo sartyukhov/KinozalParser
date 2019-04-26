@@ -78,7 +78,7 @@ class TorrentsContainer:
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
-                c=content.id,
+                c=content,
                 t=sort,
                 p=str(page)
             )
@@ -117,13 +117,14 @@ class TorrentsContainer:
             self.append(item)
             return True
 
-    def dump(self):
+    def dump(self):        
+        contentFileName = SPATH + SLASH + self.content + '.db'
         try:
-            with open(self.content.dumpName, 'wb') as db:
+            with open(contentFileName, 'wb') as db:
                 dump(self, db)
-                log.debug('{} database on disk updated'.format(self.content.dumpName))
+                log.debug('{} database on disk updated'.format(contentFileName))
         except Exception as e:
-            log.exception('{} database on disk update failed'.format(self.content.dumpName))
+            log.exception('{} database on disk update failed'.format(contentFileName))
 
     def getListOfFiles(self, num):
         t = ''
@@ -189,7 +190,7 @@ class Torrent:
     def searchMirrors(self, sort=Sort.SIZE):
         self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
-            c=self.content.id,
+            c=self.content,
             d=0,# year in name
             t=sort
         )
