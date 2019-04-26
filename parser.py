@@ -2,71 +2,83 @@
 # -*- coding: utf-8 -*-
 
 from urllib.parse               import quote
-from re                         import findall, search, sub
-from pickle                     import dump, load
+from re                         import findall
+from pickle                     import dump, load, dumps
 from time                       import time, gmtime, strftime
+from sys                        import platform
+from os.path                    import dirname, abspath
+from logger                     import logger
 from urlHandler.urlOpener       import getUrlData
-import logging
+from dbHandler                  import contentDB
 
-FORMAT =u'[%(asctime)s][%(name)s][%(levelname)s]: %(message)s'
-logging.basicConfig(level=logging.DEBUG, format=FORMAT, datefmt=u'%H:%M:%S')
-log = logging.getLogger('parser')
+log = logger.getLogger('parser')
 
-#select file
-class Content():
-    def __init__(self, id, name):
-        self.id   = id
-        self.name = name
+if platform == 'linux':
+    SLASH = '/'
+else:
+    SLASH = '\\'
 
-serials     = Content('1001', 'Все сериалы')
-movies      = Content('1002', 'Все фильмы')
-cartoons    = Content('1003', 'Все мульты')
-serials_RUS = Content('45', 'Сериал - Русский')
-serials_BUR = Content('46', 'Сериал - Буржуйский')
+SPATH = dirname(abspath(__file__))
 
-#select quality
+'''
+@ name        | Quality
+@ type        | Class
+@ description | Type of data quality
+'''
 class Quality():
     _4K    = '7'
     _1080P = '3'
     _720P  = '3'
 
-#select sort
+'''
+@ name        | Sort
+@ type        | Class
+@ description | Select how to sort content
+'''
 class Sort():
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
-#select days
+'''
+@ name        | Days
+@ type        | Class
+@ description | Select freshness of data
+'''
 class Days():
     ANY = '0'
     _1  = '1'
     _3  = '3'
 
+'''
+@ name        | TorrentsContainer
+@ type        | Class
+@ description | Collects torrents inside (array-like)
+'''
 class TorrentsContainer:
     MAX_PAGES = 5
     baseUrl = 'http://kinozal.tv/browse.php?'
 
     @classmethod
     def load(cls, content):
-        dumpName = content.id + '.db'
+        contentFileName = SPATH + SLASH + content + '.db'
         try:
-            with open(dumpName, 'rb') as db:
+            with open(contentFileName, 'rb') as db:
                 old = load(db)
-                log.debug('{} database loaded'.format(dumpName))
+                log.debug('{} database loaded'.format(content))
                 return old
         except Exception as e:
-            log.exception('{} database load failed'.format(dumpName))
+            log.exception('{} database load failed'.format(content))
 
-    def __init__(self, content, num=30, days=Days._3, sort=Sort.PIRS, dump=True):
+    def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.files   = []
         #update container 
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
-            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
+            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
                 c=content.id,
-                w=days,
                 t=sort,
                 p=str(page)
             )
@@ -106,13 +118,12 @@ class TorrentsContainer:
             return True
 
     def dump(self):
-        dumpName = self.content.id + '.db'
         try:
-            with open(dumpName, 'wb') as db:
+            with open(self.content.dumpName, 'wb') as db:
                 dump(self, db)
-                log.debug('{} database on disk updated'.format(dumpName))
+                log.debug('{} database on disk updated'.format(self.content.dumpName))
         except Exception as e:
-            log.exception('{} database on disk update failed'.format(dumpName))
+            log.exception('{} database on disk update failed'.format(self.content.dumpName))
 
     def getListOfFiles(self, num):
         t = ''
@@ -141,6 +152,11 @@ class TorrentsContainer:
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
 
+'''
+@ name        | Torrent
+@ type        | Class
+@ description | One torrent page's data
+'''
 class Torrent:
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, content, args):
@@ -170,7 +186,7 @@ class Torrent:
         self.rating = parsed.get('rating', '?')
         self.ratingUrl = self.__getRatingUrl()
 
-    def serachMirrors(self, sort=Sort.SIZE):
+    def searchMirrors(self, sort=Sort.SIZE):
         self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
             s=quote(self.name + ' ' + self.year),
             c=self.content.id,
@@ -183,16 +199,26 @@ class Torrent:
             self.mirrors.append(m)
             log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
+'''
+@ name        | parseTorrentsList
+@ type        | Function
+@ description | Parse html page (search result) and find all torrents (+ data)
+'''
 def parseTorrentsList(data):
     data = data.replace('\'', '\"')
-    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
-    fp += r'.* / (.*)</a>.*\n'
-    fp += r'<td class="s">(.*)</td>\n'
-    fp += r'<td class="sl_s">(\d*)</td>\n'
-    fp += r'<td class="sl_p">(\d*)</td>\n'
-    fp += r'<td class="s">(.*)</td>\n'
+    fp = r'''.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})
+        .* / (.*)</a>.*\n
+        <td class="s">(.*)</td>\n
+        <td class="sl_s">(\d*)</td>\n
+        <td class="sl_p">(\d*)</td>\n
+        <td class="s">(.*)</td>\n'''
     return findall(fp, data)
 
+'''
+@ name        | parseTorrentPage
+@ type        | Function
+@ description | Parse html page (torrent page) and find ratings
+'''
 def parseTorrentPage(data):
     d = dict()
 
@@ -211,14 +237,15 @@ def parseTorrentPage(data):
 
     return d
 
+'''
+@ name        | updateDB
+@ type        | Function
+@ description | Update cids in content data base
+'''
 def updateDB():
     # result saves on disk
-    TorrentsContainer(movies)
-
-def readDB(num):
-    # result saves on disk
-    return TorrentsContainer.load(movies).getListOfFiles(num=num)
+    for cid in contentDB.getCidList():
+        TorrentsContainer(cid)
 
 if __name__ == "__main__":
-    pass
-    print(movies)
+    updateDB()
