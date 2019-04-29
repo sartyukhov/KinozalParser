@@ -21,16 +21,6 @@ else:
 SPATH = dirname(abspath(__file__))
 
 '''
-@ name        | Quality
-@ type        | Class
-@ description | Type of data quality
-'''
-class Quality():
-    _4K    = '7'
-    _1080P = '3'
-    _720P  = '3'
-
-'''
 @ name        | Sort
 @ type        | Class
 @ description | Select how to sort content
@@ -49,6 +39,9 @@ class Days():
     ANY = '0'
     _1  = '1'
     _3  = '3'
+    _yesterday = '2'
+    _week      = '4'
+    _month     = '5'
 
 '''
 @ name        | TorrentsContainer
@@ -70,7 +63,7 @@ class TorrentsContainer:
         except Exception as e:
             log.exception('{} database load failed'.format(content))
 
-    def __init__(self, content, num=30, sort=Sort.PIRS, dump=True):
+    def __init__(self, content, sort=Sort.PIRS, days=Days._week, num=30, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.files   = []
@@ -80,6 +73,7 @@ class TorrentsContainer:
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
                 c=content,
                 t=sort,
+                w=days,
                 p=str(page)
             )
             for t in parseTorrentsList(getUrlData(url, name='page')):
@@ -90,7 +84,7 @@ class TorrentsContainer:
                 break
         if dump:
             self.dump()
-        log.debug('Init done in {} seconds'.format(time() + 10800 - self.created))
+        log.debug('Init {} done in {} seconds'.format(self.content, time() + 10800 - self.created))
 
     def __iter__(self):
         return iter(self.files)
@@ -123,18 +117,19 @@ class TorrentsContainer:
             with open(contentFileName, 'wb') as db:
                 dump(self, db)
                 log.debug('{} database on disk updated'.format(contentFileName))
-        except Exception as e:
+        except:
             log.exception('{} database on disk update failed'.format(contentFileName))
 
     def getListOfFiles(self, num):
-        t = ''
+        t = '{}\n\n'.format(contentDB.cid2Rname(self.content))
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {n}\n{url}'.format(
-                N  = counter,
-                n  = f.name,
-                url= f.ratingUrl
+            t += '{N}: {selfurl}\n{rating}'.format(
+                N    = counter,
+                # n    = f.name,
+                rating  = f.ratingUrl,
+                selfurl = f.selfUrl
             )
             if len(f.mirrors) > 0:
                 m = f.mirrors[0]
@@ -143,11 +138,11 @@ class TorrentsContainer:
                     q = m[3],
                     u = m[8]
                 )
-                t += '[Other mirrors]({u})\n'.format(u=f.surl)
+            t += '[Other mirrors]({u})\n'.format(u=f.surl)
             if counter >= num:
                 break
-            t += '~' * 15 + '\n'
-        t += strftime('\n\nUpd: %H:%M (%d/%m/%y) (UTC+3)', gmtime(self.created))
+            t += '=' * 15 + '\n'
+        t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
         return t
 
     def sort(self):
@@ -169,6 +164,13 @@ class Torrent:
         self.pirs     = args[6]
         self.uploaded = args[7]
         self.mirrors  = []
+        self.selfUrl  = self.__getSelfUrl()
+
+    def __getSelfUrl(self):
+        return '[{name}]({url})\n'.format(
+                name = self.name,
+                url = self.baseUrl + self.id
+            )
 
     def __getRatingUrl(self):
         if self.rating != '?':
