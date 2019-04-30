@@ -125,23 +125,23 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {selfurl}\n{rating}'.format(
-                N    = counter,
-                # n    = f.name,
+            t += '{N}: {name}\n{rating}[Top Pirs]({selfurl})\n'.format(
+                N       = counter,
+                name    = f.name,
                 rating  = f.ratingUrl,
                 selfurl = f.selfUrl
             )
             if len(f.mirrors) > 0:
                 m = f.mirrors[0]
-                t += 'Best: [{q} {s}]({u})\n'.format(
-                    s = m[4],
-                    q = m[3],
-                    u = m[8]
+                t += '[Best: {qual} {size}]({url})\n'.format(
+                    qual = m[3],
+                    size = m[4],
+                    url  = m[8]
                 )
             t += '[Other mirrors]({u})\n'.format(u=f.surl)
             if counter >= num:
                 break
-            t += '=' * 15 + '\n'
+            t += '#' * 15 + '\n'
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
         return t
 
@@ -163,21 +163,15 @@ class Torrent:
         self.sids     = args[5]
         self.pirs     = args[6]
         self.uploaded = args[7]
+        self.selfUrl  = self.baseUrl + self.id
         self.mirrors  = []
-        self.selfUrl  = self.__getSelfUrl()
-
-    def __getSelfUrl(self):
-        return '[{name}]({url})\n'.format(
-                name = self.name,
-                url = self.baseUrl + self.id
-            )
 
     def __getRatingUrl(self):
         if self.rating != '?':
-            return '[{rn}: {r}]({ru})\n'.format(
-                rn = self.ratsrc,
-                ru = self.raturl,
-                r  = self.rating
+            return '[{src}: {rat}]({url}) | '.format(
+                src = self.ratsrc,
+                rat = self.rating,
+                url = self.raturl
             )
         else:
             return ''
