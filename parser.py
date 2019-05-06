@@ -121,7 +121,7 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {name}\n{rating}[Link]({selfurl})\n'.format(
+            t += '{N}: {name}\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
                 rating  = f.ratingUrl,
@@ -137,7 +137,7 @@ class TorrentsContainer:
             t += '[Other mirrors]({u})\n'.format(u=f.surl)
             if counter >= num:
                 break
-            t += '#' * 15 + '\n'
+            t += '~' * 15 + '\n'
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
         return t
 
@@ -162,7 +162,7 @@ class Torrent:
 
     def __getRatingUrl(self):
         if self.rating != '?':
-            return '[{src}: {rat}]({url}) | '.format(
+            return ' | [{src}: {rat}]({url})'.format(
                 src = self.ratsrc,
                 rat = self.rating,
                 url = self.raturl
@@ -217,10 +217,6 @@ def parseTorrentPage(data):
             d['raturl'] = findResult[0][0]
             d['rating'] = findResult[0][1]
             break
-        else:
-            d['ratsrc'] = '?'
-            d['raturl'] = '?'
-            d['rating'] = '?'
 
     return d
 
