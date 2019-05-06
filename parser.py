@@ -1,15 +1,17 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
+# libs includes
 from urllib.parse               import quote
 from re                         import findall
 from pickle                     import dump, load, dumps
 from time                       import time, gmtime, strftime
 from sys                        import platform
 from os.path                    import dirname, abspath
+# project includes
 from logger                     import logger
-from urlHandler.urlOpener       import getUrlData
 from dbHandler                  import contentDB
+from urlHandler.urlOpener       import getUrlData
 
 log = logger.getLogger('parser')
 
@@ -20,22 +22,18 @@ else:
 
 SPATH = dirname(abspath(__file__))
 
-'''
-@ name        | Sort
-@ type        | Class
-@ description | Select how to sort content
-'''
 class Sort():
+    '''
+    @ description | Select how to sort content
+    '''
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
-'''
-@ name        | Days
-@ type        | Class
-@ description | Select freshness of data
-'''
 class Days():
+    '''
+    @ description | Select freshness of data
+    '''
     ANY = '0'
     _1  = '1'
     _3  = '3'
@@ -43,12 +41,10 @@ class Days():
     _week      = '4'
     _month     = '5'
 
-'''
-@ name        | TorrentsContainer
-@ type        | Class
-@ description | Collects torrents inside (array-like)
-'''
 class TorrentsContainer:
+    '''
+    @ description | Collects torrents inside (array-like)
+    '''
     MAX_PAGES = 5
     baseUrl = 'http://kinozal.tv/browse.php?'
 
@@ -125,7 +121,7 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            t += '{N}: {name}\n{rating}[Top Pirs]({selfurl})\n'.format(
+            t += '{N}: {name}\n{rating}[Link]({selfurl})\n'.format(
                 N       = counter,
                 name    = f.name,
                 rating  = f.ratingUrl,
@@ -148,12 +144,10 @@ class TorrentsContainer:
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
 
-'''
-@ name        | Torrent
-@ type        | Class
-@ description | One torrent page's data
-'''
 class Torrent:
+    '''
+    @ description | One torrent page's data
+    '''
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, content, args):
         self.content  = content
@@ -196,12 +190,10 @@ class Torrent:
             self.mirrors.append(m)
             log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
-'''
-@ name        | parseTorrentsList
-@ type        | Function
-@ description | Parse html page (search result) and find all torrents (+ data)
-'''
 def parseTorrentsList(data):
+    '''
+    @ description | Parse html page (search result) and find all torrents (+ data)
+    '''
     data = data.replace('\'', '\"')
     fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
     fp += r'.* / (.*)</a>.*\n'
@@ -211,12 +203,10 @@ def parseTorrentsList(data):
     fp += r'<td class="s">(.*)</td>\n'
     return findall(fp, data)
 
-'''
-@ name        | parseTorrentPage
-@ type        | Function
-@ description | Parse html page (torrent page) and find ratings
-'''
 def parseTorrentPage(data):
+    '''
+    @ description | Parse html page (torrent page) and find ratings
+    '''
     d = dict()
 
     for db in ('IMDb', 'Кинопоиск'):
@@ -234,13 +224,10 @@ def parseTorrentPage(data):
 
     return d
 
-'''
-@ name        | updateDB
-@ type        | Function
-@ description | Update cids in content data base
-'''
 def updateDB():
-    # result saves on disk
+    '''
+    @ description | Update cids in content data base and saves result on disk
+    '''
     for cid in contentDB.getCidList():
         TorrentsContainer(cid)
 
