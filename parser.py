@@ -23,16 +23,14 @@ else:
 SPATH = dirname(abspath(__file__))
 
 class Sort():
-    '''
-    @ description | Select how to sort content
+    ''' Select how to sort content
     '''
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
 class Days():
-    '''
-    @ description | Select freshness of data
+    ''' Select freshness of data
     '''
     ANY = '0'
     _1  = '1'
@@ -42,8 +40,7 @@ class Days():
     _month     = '5'
 
 class TorrentsContainer:
-    '''
-    @ description | Collects torrents inside (array-like)
+    ''' Collects torrents inside (array-like)
     '''
     MAX_PAGES = 5
     baseUrl = 'http://kinozal.tv/browse.php?'
@@ -145,8 +142,7 @@ class TorrentsContainer:
         self.files = sorted(self.files, key=lambda f: f.name)
 
 class Torrent:
-    '''
-    @ description | One torrent page's data
+    ''' One torrent page's data
     '''
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, content, args):
@@ -191,8 +187,7 @@ class Torrent:
             log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
 
 def parseTorrentsList(data):
-    '''
-    @ description | Parse html page (search result) and find all torrents (+ data)
+    ''' Parse html page (search result) and find all torrents (+ data)
     '''
     data = data.replace('\'', '\"')
     fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
@@ -204,8 +199,7 @@ def parseTorrentsList(data):
     return findall(fp, data)
 
 def parseTorrentPage(data):
-    '''
-    @ description | Parse html page (torrent page) and find ratings
+    ''' Parse html page (torrent page) and find ratings
     '''
     d = dict()
 
@@ -221,8 +215,7 @@ def parseTorrentPage(data):
     return d
 
 def updateDB():
-    '''
-    @ description | Update cids in content data base and saves result on disk
+    ''' Update cids in content data base and saves result on disk
     '''
     for cid in contentDB.getCidList():
         TorrentsContainer(cid)
