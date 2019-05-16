@@ -46,19 +46,25 @@ class TorrentsContainer:
     baseUrl = 'http://kinozal.tv/browse.php?'
 
     @classmethod
-    def load(cls, content):
-        contentFileName = SPATH + SLASH + content + '.db'
-        try:
-            with open(contentFileName, 'rb') as db:
-                old = load(db)
-                log.debug('{} database loaded'.format(content))
-                return old
-        except Exception as e:
-            log.exception('{} database load failed'.format(content))
+    def getDumpName(cls, content, days, sort):
+        return '{}{}_c{}_d{}_s{}.db'.format(SPATH, SLASH, content, days, sort)
 
-    def __init__(self, content, sort=Sort.PIRS, days=Days._week, num=30, dump=True):
+    @classmethod
+    def load(cls, content, days, sort=Sort.PIRS):
+        dumpName = cls.getDumpName(content, days, sort)
+        try:
+            with open(dumpName, 'rb') as db:
+                old = load(db)
+                log.debug('{} database loaded'.format(dumpName))
+                return old
+        except:
+            log.exception('{} database load failed'.format(dumpName))
+
+    def __init__(self, content, sort=Sort.PIRS, days=Days._week, num=20, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
+        self.sort    = sort
+        self.days    = days
         self.files   = []
         #update container 
         for page in range(self.MAX_PAGES):
@@ -104,14 +110,14 @@ class TorrentsContainer:
             self.append(item)
             return True
 
-    def dump(self):        
-        contentFileName = SPATH + SLASH + self.content + '.db'
+    def dump(self):
+        dumpName = self.getDumpName(self.content, self.days, self.sort)
         try:
-            with open(contentFileName, 'wb') as db:
+            with open(dumpName, 'wb') as db:
                 dump(self, db)
-                log.debug('{} database on disk updated'.format(contentFileName))
+                log.debug('{} database on disk updated'.format(dumpName))
         except:
-            log.exception('{} database on disk update failed'.format(contentFileName))
+            log.exception('{} database on disk update failed'.format(dumpName))
 
     def getListOfFiles(self, num):
         t = '{}\n\n'.format(contentDB.cid2Rname(self.content))
@@ -218,7 +224,9 @@ def updateDB():
     ''' Update cids in content data base and saves result on disk
     '''
     for cid in contentDB.getCidList():
-        TorrentsContainer(cid)
+        TorrentsContainer(cid, days=Days._1)
+        TorrentsContainer(cid, days=Days._3)
+        TorrentsContainer(cid, days=Days._week)
 
 if __name__ == "__main__":
     updateDB()
