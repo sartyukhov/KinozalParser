@@ -25,13 +25,16 @@ SPATH = dirname(abspath(__file__))
 class Sort():
     ''' Select how to sort content
     '''
+    NEW  = '0'
     SIDS = '1'
     PIRS = '2'
     SIZE = '3'
 
     @classmethod
     def toText(cls, sort):
-        if sort == cls.SIDS:
+        if sort == cls.NEW:
+            return 'по новизне'
+        elif sort == cls.SIDS:
             return 'по сидам'
         elif sort == cls.PIRS:
             return 'по пирам'
@@ -74,7 +77,7 @@ class TorrentsContainer:
         return '{}{}_c{}_d{}_s{}.db'.format(SPATH, SLASH, content, days, sort)
 
     @classmethod
-    def load(cls, content, days, sort=Sort.PIRS):
+    def load(cls, content, days, sort):
         dumpName = cls.getDumpName(content, days, sort)
         try:
             with open(dumpName, 'rb') as db:
@@ -84,7 +87,7 @@ class TorrentsContainer:
         except:
             log.exception('{} database load failed'.format(dumpName))
 
-    def __init__(self, content, sort=Sort.PIRS, days=Days._week, num=20, dump=True):
+    def __init__(self, content, days, sort, num=20, dump=True):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.sort    = sort
@@ -93,7 +96,7 @@ class TorrentsContainer:
         #update container 
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
-            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0&page={p}'.format(
+            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
                 c=content,
                 t=sort,
                 w=days,
@@ -249,9 +252,9 @@ def updateDB():
     t1 = time()
 
     for cid in contentDB.getCidList():
-        TorrentsContainer(cid, days=Days._1)
-        TorrentsContainer(cid, days=Days._3)
-        TorrentsContainer(cid, days=Days._week)
+        for days in (Days._1, Days._3, Days._week):
+            for sort in (Sort.NEW, Sort.SIDS, Sort.PIRS):
+                TorrentsContainer(cid, days, sort)
 
     log.debug('Full data base update made in {:.1f} seconds'.format(time() - t1))
 
