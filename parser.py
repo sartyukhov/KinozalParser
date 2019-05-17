@@ -29,6 +29,15 @@ class Sort():
     PIRS = '2'
     SIZE = '3'
 
+    @classmethod
+    def toText(cls, sort):
+        if sort == cls.SIDS:
+            return 'по сидам'
+        elif sort == cls.PIRS:
+            return 'по пирам'
+        elif sort == cls.SIZE:
+            return 'по размеру'
+            
 class Days():
     ''' Select freshness of data
     '''
@@ -38,6 +47,21 @@ class Days():
     _yesterday = '2'
     _week      = '4'
     _month     = '5'
+
+    @classmethod
+    def toText(cls, days):
+        if days == cls._1:
+            return '1 день'
+        elif days == cls._3:
+            return '3 дня'
+        elif days == cls._yesterday:
+            return 'вчера'
+        elif days == cls._week:
+            return 'неделя'
+        elif days == cls._month:
+            return 'месяц'
+        elif days == cls.ANY:
+            return 'любое'
 
 class TorrentsContainer:
     ''' Collects torrents inside (array-like)
@@ -83,7 +107,6 @@ class TorrentsContainer:
                 break
         if dump:
             self.dump()
-        log.debug('Init {} done in {} seconds'.format(self.content, time() + 10800 - self.created))
 
     def __iter__(self):
         return iter(self.files)
@@ -196,7 +219,7 @@ def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
     '''
     data = data.replace('\'', '\"')
-    fp =  r'.*<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
+    fp =  r'<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
     fp += r'.* / (.*)</a>.*\n'
     fp += r'<td class="s">(.*)</td>\n'
     fp += r'<td class="sl_s">(\d*)</td>\n'
@@ -210,7 +233,7 @@ def parseTorrentPage(data):
     d = dict()
 
     for db in ('IMDb', 'Кинопоиск'):
-        pattern = r'.*href="(.*)" target=.*>{}<span class=.*>(.*)</span>.*'.format(db)
+        pattern = r'href="(.*)" target=.*>{}<span class=.*>(.*)</span>'.format(db)
         findResult = findall(pattern, data)
         if len(findResult) > 0:
             d['ratsrc'] = db
@@ -223,10 +246,14 @@ def parseTorrentPage(data):
 def updateDB():
     ''' Update cids in content data base and saves result on disk
     '''
+    t1 = time()
+
     for cid in contentDB.getCidList():
         TorrentsContainer(cid, days=Days._1)
         TorrentsContainer(cid, days=Days._3)
         TorrentsContainer(cid, days=Days._week)
+
+    log.debug('Full data base update made in {:.1f} seconds'.format(time() - t1))
 
 if __name__ == "__main__":
     updateDB()
