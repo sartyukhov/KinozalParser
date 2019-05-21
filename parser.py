@@ -87,23 +87,26 @@ class TorrentsContainer:
         except:
             log.exception('{} database load failed'.format(dumpName))
 
-    def __init__(self, content, days, sort, num=20, dump=True):
+    def __init__(self, content, days, sort):
         self.created = time() + 10800 # UTC+3
         self.content = content
         self.sort    = sort
         self.days    = days
         self.files   = []
-        #update container 
+
+    def update(self, num=20, dump=True):
+        #update container
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
+
             url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
-                c=content,
-                t=sort,
-                w=days,
+                c=self.content,
+                t=self.sort,
+                w=self.days,
                 p=str(page)
             )
             for t in parseTorrentsList(getUrlData(url, name='page')):
-                self.appendUnique(Torrent(content, t))
+                self.appendUnique(Torrent(self.content, t))
                 if len(self) >= num:
                     break
             if len(self) >= num:
@@ -146,7 +149,11 @@ class TorrentsContainer:
             log.exception('{} database on disk update failed'.format(dumpName))
 
     def getListOfFiles(self, num):
-        t = '{}\n\n'.format(contentDB.cid2Rname(self.content))
+        t = '{}\n{} за {}\n\n'.format(
+            contentDB.cid2Rname(self.content),
+            Sort.toText(self.sort).capitalize(),
+            Days.toText(self.days)
+        )
         counter = 0
         for f in self.files:
             counter += 1
@@ -163,7 +170,7 @@ class TorrentsContainer:
                     size = m[4],
                     url  = m[8]
                 )
-            t += '[Other mirrors]({u})\n'.format(u=f.surl)
+            t += '[Other mirrors]({u})\n'.format(u=f.mirrors_url)
             if counter >= num:
                 break
             t += '~' * 15 + '\n'
@@ -206,13 +213,14 @@ class Torrent:
         self.ratingUrl = self.__getRatingUrl()
 
     def searchMirrors(self, sort=Sort.SIZE):
-        self.surl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
-            s=quote(self.name + ' ' + self.year),
-            c=self.content,
-            d=0,# year in name
-            t=sort
-        )
-        for m in parseTorrentsList(getUrlData(self.surl, name='mirrors_page')):
+        self.mirrors_url = \
+            'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
+                s=quote(self.name + ' ' + self.year),
+                c=self.content,
+                d=0,# year in name
+                t=sort
+            )
+        for m in parseTorrentsList(getUrlData(self.mirrors_url, name='mirrors_page')):
             m = list(m)
             m.append(self.baseUrl + m[0])
             self.mirrors.append(m)
@@ -220,6 +228,15 @@ class Torrent:
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
+        Result tuple:
+            [0] : id
+            [1] : name
+            [2] : year
+            [3] : quality
+            [4] : size
+            [5] : sids
+            [6] : pirs
+            [7] : uploaded
     '''
     data = data.replace('\'', '\"')
     fp =  r'<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
@@ -232,6 +249,10 @@ def parseTorrentsList(data):
 
 def parseTorrentPage(data):
     ''' Parse html page (torrent page) and find ratings
+        Result dict:
+            d[ratsrc] : database source (IMDB or Kinozal)
+            d[raturl] : rating url
+            d[rating] : rating value (0:10)
     '''
     d = dict()
 
@@ -254,9 +275,11 @@ def updateDB():
     for cid in contentDB.getCidList():
         for days in (Days._1, Days._3, Days._week):
             for sort in (Sort.NEW, Sort.SIDS, Sort.PIRS):
-                TorrentsContainer(cid, days, sort)
+                TorrentsContainer(cid, days, sort).update()
 
-    log.debug('Full data base update made in {:.1f} seconds'.format(time() - t1))
+    seconds = '{:.1f}'.format(time() - t1)
+    log.debug('Full data base update made in {} seconds'.format(seconds))
+    return seconds
 
 if __name__ == "__main__":
     updateDB()
