@@ -44,7 +44,7 @@ class Sort():
 class Days():
     ''' Select freshness of data
     '''
-    ANY = '0'
+    _any = '0'
     _1  = '1'
     _3  = '3'
     _yesterday = '2'
@@ -63,8 +63,8 @@ class Days():
             return 'неделя'
         elif days == cls._month:
             return 'месяц'
-        elif days == cls.ANY:
-            return 'любое'
+        elif days == cls._any:
+            return 'всё время'
 
 class TorrentsContainer:
     ''' Collects torrents inside (array-like)
@@ -273,7 +273,7 @@ def updateDB():
     t1 = time()
 
     for cid in contentDB.getCidList():
-        for days in (Days._1, Days._3, Days._week):
+        for days in (Days._1, Days._3, Days._week, Days._month, Days._any):
             for sort in (Sort.NEW, Sort.SIDS, Sort.PIRS):
                 TorrentsContainer(cid, days, sort).update()
 
