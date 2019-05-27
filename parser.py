@@ -52,7 +52,7 @@ class Days():
     _month     = '5'
 
     @classmethod
-    def toText(cls, days):
+    def toText(cls, days, case=False):
         if days == cls._1:
             return '1 день'
         elif days == cls._3:
@@ -60,7 +60,7 @@ class Days():
         elif days == cls._yesterday:
             return 'вчера'
         elif days == cls._week:
-            return 'неделя'
+            return ('неделя' if not case else 'неделю')
         elif days == cls._month:
             return 'месяц'
         elif days == cls._any:
@@ -152,7 +152,7 @@ class TorrentsContainer:
         t = '{}\n{} за {}\n\n'.format(
             contentDB.cid2Rname(self.content),
             Sort.toText(self.sort).capitalize(),
-            Days.toText(self.days)
+            Days.toText(self.days, case=True)
         )
         counter = 0
         for f in self.files:
