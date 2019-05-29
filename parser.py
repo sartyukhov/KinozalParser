@@ -128,7 +128,6 @@ class TorrentsContainer:
 
     def append(self, item):
         item.downloadMoreInfo()
-        item.searchMirrors()
         self.files.append(item)
         log.debug('{} files in container'.format(len(self)))
 
@@ -160,15 +159,14 @@ class TorrentsContainer:
             t += '{N}: {name}\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
-                rating  = f.ratingUrl,
-                selfurl = f.selfUrl
+                selfurl = f.selfUrl,
+                rating  = f.ratingUrl
             )
-            if len(f.mirrors) > 0:
-                m = f.mirrors[0]
+            if f.topUrl:
                 t += '[Best: {qual} {size}]({url})\n'.format(
-                    qual = m[3],
-                    size = m[4],
-                    url  = m[8]
+                    qual = f.topQuality,
+                    size = f.topSize,
+                    url  = f.topUrl
                 )
             t += '[Other mirrors]({u})\n'.format(u=f.mirrors_url)
             if counter >= num:
@@ -193,38 +191,37 @@ class Torrent:
         self.pirs     = args[6]
         self.uploaded = args[7]
         self.selfUrl  = self.baseUrl + self.id
-        self.mirrors  = []
 
-    def __getRatingUrl(self):
-        if self.rating != '?':
-            return ' | [{src}: {rat}]({url})'.format(
-                src = self.ratsrc,
-                rat = self.rating,
-                url = self.raturl
-            )
-        else:
-            return ''
+        self.ratsrc      = ''
+        self.raturl      = ''
+        self.rating      = ''
+        self.ratingUrl   = ''
+
+        self.mirrors_url = ''
+        self.topUrl      = ''
+        self.topQuality  = ''
+        self.topSize     = ''
 
     def downloadMoreInfo(self):
         parsed = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
-        self.ratsrc = parsed.get('ratsrc', '?')
-        self.raturl = parsed.get('raturl', '?')
-        self.rating = parsed.get('rating', '?')
-        self.ratingUrl = self.__getRatingUrl()
+        self.ratsrc = parsed.get('ratsrc', '')
+        self.raturl = parsed.get('raturl', '')
+        self.rating = parsed.get('rating', '')
+        if self.rating:
+            self.ratingUrl = ' | [{}: {}]({})'.format(self.ratsrc, self.rating, self.raturl)
 
-    def searchMirrors(self, sort=Sort.SIZE):
-        self.mirrors_url = \
-            'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d={d}&w=0&t={t}&f=0'.format(
+        self.mirrors_url = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
+            .format(
                 s=quote(self.name + ' ' + self.year),
                 c=self.content,
-                d=0,# year in name
-                t=sort
+                t=Sort.SIZE
             )
-        for m in parseTorrentsList(getUrlData(self.mirrors_url, name='mirrors_page')):
-            m = list(m)
-            m.append(self.baseUrl + m[0])
-            self.mirrors.append(m)
-            log.debug('Mirror added: {} {} {}'.format(m[1], m[3], m[4]))
+        mirrors = parseTorrentsList(getUrlData(self.mirrors_url, name='mirrors_page'))
+        if len(mirrors) > 0:
+            topMirror       = mirrors[0]
+            self.topUrl     = self.baseUrl + topMirror[0]
+            self.topQuality = topMirror[3]
+            self.topSize    = topMirror[4]
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
