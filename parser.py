@@ -186,6 +186,7 @@ class Torrent:
         self.content  = content
         self.id       = args[0]
         self.name     = args[1]
+        self.ruName   = findall(r'([^/]*)', self.name)[0]
         self.year     = args[2]
         self.sids     = args[5]
         self.pirs     = args[6]
@@ -212,7 +213,7 @@ class Torrent:
 
         self.mirrors_url = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
             .format(
-                s=quote(self.name + ' ' + self.year),
+                s=quote(self.ruName + ' ' + self.year),
                 c=self.content,
                 t=Sort.SIZE
             )
