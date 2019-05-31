@@ -156,13 +156,17 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
+            if f.raturl_s:
+                ratingMD = ' | [{}: {}]({})'.format(f.ratsrc, f.rating, f.raturl_s)
+            else:
+                ratingMD = ''
             t += '{N}: {name}\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
                 selfurl = f.selfUrl_s,
-                rating  = f.ratingUrl_s
+                rating  = ratingMD
             )
-            if f.topUrl:
+            if f.topUrl_s:
                 t += '[Best: {qual} {size}]({url})\n'.format(
                     qual = f.topQuality,
                     size = f.topSize,
@@ -199,8 +203,7 @@ class Torrent:
         self.ratsrc       = ''
         self.raturl       = ''
         self.rating       = ''
-        self.ratingUrl    = ''
-        self.ratingUrl_s  = ''
+        self.raturl_s     = ''
 
         self.topUrl       = ''
         self.topUrl_s     = ''
@@ -215,8 +218,6 @@ class Torrent:
         self.ratsrc = parsed.get('ratsrc', '')
         self.raturl = parsed.get('raturl', '')
         self.rating = parsed.get('rating', '')
-        if self.rating:
-            self.ratingUrl = ' | [{}: {}]({})'.format(self.ratsrc, self.rating, self.raturl)
         # get best quelity
         self.mirrorsUrl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
             .format(
@@ -232,9 +233,9 @@ class Torrent:
             self.topSize    = topMirror[4]
         # get shorter urls
         self.selfUrl_s    = urlDB.getShortUrl(self.selfUrl)
-        self.ratingUrl_s  = urlDB.getShortUrl(self.ratingUrl)
-        self.topUrl_s     = urlDB.getShortUrl(self.topUrl)
-        self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl)
+        self.raturl_s     = urlDB.getShortUrl(self.raturl)     if self.raturl     else ''
+        self.topUrl_s     = urlDB.getShortUrl(self.topUrl)     if self.topUrl     else ''
+        self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl) if self.mirrorsUrl else ''
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
