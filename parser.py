@@ -10,7 +10,7 @@ from sys                        import platform
 from os.path                    import dirname, abspath
 # project includes
 from logger                     import logger
-from dbHandler                  import contentDB
+from dbHandler                  import contentDB, urlDB
 from urlHandler.urlOpener       import getUrlData
 
 log = logger.getLogger('parser')
@@ -159,19 +159,21 @@ class TorrentsContainer:
             t += '{N}: {name}\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
-                selfurl = f.selfUrl,
-                rating  = f.ratingUrl
+                selfurl = f.selfUrl_s,
+                rating  = f.ratingUrl_s
             )
             if f.topUrl:
                 t += '[Best: {qual} {size}]({url})\n'.format(
                     qual = f.topQuality,
                     size = f.topSize,
-                    url  = f.topUrl
+                    url  = f.topUrl_s
                 )
-            t += '[Other mirrors]({u})\n'.format(u=f.mirrors_url)
+            t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl_s)
             if counter >= num:
                 break
             t += '~' * 15 + '\n'
+        if counter == 0:
+            t += 'Подборка пуста, попробуйте изменить фильтры.\n'
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
         return t
 
@@ -183,46 +185,56 @@ class Torrent:
     '''
     baseUrl = 'http://kinozal.tv/details.php?id='
     def __init__(self, content, args):
-        self.content  = content
-        self.id       = args[0]
-        self.name     = args[1]
-        self.ruName   = findall(r'([^/]*)', self.name)[0]
-        self.year     = args[2]
-        self.sids     = args[5]
-        self.pirs     = args[6]
-        self.uploaded = args[7]
-        self.selfUrl  = self.baseUrl + self.id
+        self.content      = content
+        self.id           = args[0]
+        self.name         = args[1]
+        self.ruName       = findall(r'([^/]*)', self.name)[0]
+        self.year         = args[2]
+        self.sids         = args[5]
+        self.pirs         = args[6]
+        self.uploaded     = args[7]
+        self.selfUrl      = self.baseUrl + self.id
+        self.selfUrl_s    = self.selfUrl
 
-        self.ratsrc      = ''
-        self.raturl      = ''
-        self.rating      = ''
-        self.ratingUrl   = ''
+        self.ratsrc       = ''
+        self.raturl       = ''
+        self.rating       = ''
+        self.ratingUrl    = ''
+        self.ratingUrl_s  = ''
 
-        self.mirrors_url = ''
-        self.topUrl      = ''
-        self.topQuality  = ''
-        self.topSize     = ''
+        self.topUrl       = ''
+        self.topUrl_s     = ''
+        self.topQuality   = ''
+        self.topSize      = ''
+        self.mirrorsUrl   = ''
+        self.mirrorsUrl_s = ''
 
     def downloadMoreInfo(self):
+        # get rating 
         parsed = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
         self.ratsrc = parsed.get('ratsrc', '')
         self.raturl = parsed.get('raturl', '')
         self.rating = parsed.get('rating', '')
         if self.rating:
             self.ratingUrl = ' | [{}: {}]({})'.format(self.ratsrc, self.rating, self.raturl)
-
-        self.mirrors_url = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
+        # get best quelity
+        self.mirrorsUrl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
             .format(
                 s=quote(self.ruName + ' ' + self.year),
                 c=self.content,
                 t=Sort.SIZE
             )
-        mirrors = parseTorrentsList(getUrlData(self.mirrors_url, name='mirrors_page'))
+        mirrors = parseTorrentsList(getUrlData(self.mirrorsUrl, name='mirrors_page'))
         if len(mirrors) > 0:
             topMirror       = mirrors[0]
             self.topUrl     = self.baseUrl + topMirror[0]
             self.topQuality = topMirror[3]
             self.topSize    = topMirror[4]
+        # get shorter urls
+        self.selfUrl_s    = urlDB.getShortUrl(self.selfUrl)
+        self.ratingUrl_s  = urlDB.getShortUrl(self.ratingUrl)
+        self.topUrl_s     = urlDB.getShortUrl(self.topUrl)
+        self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl)
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
