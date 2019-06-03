@@ -8,6 +8,7 @@ from pickle                     import dump, load, dumps
 from time                       import time, gmtime, strftime
 from sys                        import platform
 from os.path                    import dirname, abspath
+from threading                  import Thread
 # project includes
 from logger                     import logger
 from dbHandler                  import contentDB, urlDB
@@ -285,8 +286,15 @@ def updateDB():
 
     for cid in contentDB.getCidList():
         for days in (Days._1, Days._3, Days._week, Days._month, Days._any):
-            for sort in (Sort.NEW, Sort.SIDS, Sort.PIRS):
-                TorrentsContainer(cid, days, sort).update()
+            w1 = Thread(target=TorrentsContainer(cid, days, Sort.PIRS).update)
+            w2 = Thread(target=TorrentsContainer(cid, days, Sort.SIDS).update)
+            w3 = Thread(target=TorrentsContainer(cid, days, Sort.NEW).update)
+            w1.start()
+            w2.start()
+            w3.start()
+            w1.join()
+            w2.join()
+            w3.join()
 
     seconds = '{:.1f}'.format(time() - t1)
     log.debug('Full data base update made in {} seconds'.format(seconds))
