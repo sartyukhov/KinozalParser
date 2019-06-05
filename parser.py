@@ -251,7 +251,7 @@ def parseTorrentsList(data):
             [7] : uploaded
     '''
     data = data.replace('\'', '\"')
-    fp =  r'<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([0-2]{2}[0-9]{2})'
+    fp =  r'<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([1-2]{1}[0-9]{3})'
     fp += r'.* / (.*)</a>.*\n'
     fp += r'<td class="s">(.*)</td>\n'
     fp += r'<td class="sl_s">(\d*)</td>\n'
