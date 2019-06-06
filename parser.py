@@ -161,9 +161,10 @@ class TorrentsContainer:
                 ratingMD = ' | [{}: {}]({})'.format(f.ratsrc, f.rating, f.raturl_s)
             else:
                 ratingMD = ''
-            t += '{N}: {name}\n[Link]({selfurl}){rating}\n'.format(
+            t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
+                year    = f.year,
                 selfurl = f.selfUrl_s,
                 rating  = ratingMD
             )
