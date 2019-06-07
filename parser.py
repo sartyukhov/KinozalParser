@@ -4,11 +4,12 @@
 # libs includes
 from urllib.parse               import quote
 from re                         import findall
-from pickle                     import dump, load, dumps
+from pickle                     import dump, load
 from time                       import time, gmtime, strftime
 from sys                        import platform
 from os.path                    import dirname, abspath
 from threading                  import Thread
+from html                       import unescape
 # project includes
 from logger                     import logger
 from dbHandler                  import contentDB, urlDB
@@ -181,7 +182,7 @@ class TorrentsContainer:
         if counter == 0:
             t += 'Подборка пуста, попробуйте изменить фильтры.\n'
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
-        return t
+        return unescape(t)
 
     def sort(self):
         self.files = sorted(self.files, key=lambda f: f.name)
