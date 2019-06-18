@@ -72,7 +72,7 @@ class TorrentsContainer:
     ''' Collects torrents inside (array-like)
     '''
     MAX_PAGES = 5
-    baseUrl = 'http://kinozal.tv/browse.php?'
+    searchUrl = 'http://kinozal.tv/browse.php?'
 
     @classmethod
     def getDumpName(cls, content, days, sort):
@@ -101,7 +101,7 @@ class TorrentsContainer:
         for page in range(self.MAX_PAGES):
             log.debug('Parsing page ' + str(page))
 
-            url = self.baseUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
+            url = self.searchUrl + 's=&g=0&c={c}&v=0&d=0&w={w}&t={t}&f=0&page={p}'.format(
                 c=self.content,
                 t=self.sort,
                 w=self.days,
@@ -197,6 +197,8 @@ class Torrent:
         self.name         = args[1]
         self.ruName       = findall(r'([^/]*)', self.name)[0]
         self.year         = args[2]
+        self.quality      = args[3]
+        self.size         = args[4]
         self.sids         = args[5]
         self.pirs         = args[6]
         self.uploaded     = args[7]
@@ -222,7 +224,8 @@ class Torrent:
         self.raturl = parsed.get('raturl', '')
         self.rating = parsed.get('rating', '')
         # get best quelity
-        self.mirrorsUrl = 'http://kinozal.tv/browse.php?s={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
+        self.mirrorsUrl =  TorrentsContainer.searchUrl
+        self.mirrorsUrl += 's={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
             .format(
                 s=quote(self.ruName + ' ' + self.year),
                 c=self.content,
@@ -239,6 +242,33 @@ class Torrent:
         self.raturl_s     = urlDB.getShortUrl(self.raturl)     if self.raturl     else ''
         self.topUrl_s     = urlDB.getShortUrl(self.topUrl)     if self.topUrl     else ''
         self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl) if self.mirrorsUrl else ''
+
+def searchTorrents(name):
+    ''' Search request
+    '''
+    url = TorrentsContainer.searchUrl
+    url += 's={s}&g=0&c=0&v=0&d=0&w=0&t={t}&f=0'\
+        .format(
+            s=quote(name),
+            t=Sort.NEW
+        )
+    s_res = parseTorrentsList(getUrlData(url, name='mirrors_page'))
+    t = 'Результат поиска по:\n{}\n\n'.format(name)
+    counter = 0
+    for each in s_res:
+        counter += 1
+        tor = Torrent(0, each)
+        t += '{c}. {n}[{qs}]({url})\n'.format(
+            c=counter, 
+            n=tor.ruName,
+            qs=tor.quality + ' ' + tor.size,
+            url=tor.selfUrl
+        )
+
+    if counter == 0:
+        t += 'Ничего не найдено'
+
+    return t
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
