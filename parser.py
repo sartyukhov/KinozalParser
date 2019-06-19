@@ -243,14 +243,14 @@ class Torrent:
         self.topUrl_s     = urlDB.getShortUrl(self.topUrl)     if self.topUrl     else ''
         self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl) if self.mirrorsUrl else ''
 
-def searchTorrents(name):
+def searchTorrents(name, sort=Sort.NEW):
     ''' Search request
     '''
     url = TorrentsContainer.searchUrl
     url += 's={s}&g=0&c=0&v=0&d=0&w=0&t={t}&f=0'\
         .format(
             s=quote(name),
-            t=Sort.NEW
+            t=sort
         )
     s_res = parseTorrentsList(getUrlData(url, name='mirrors_page'))
     t = 'Результат поиска по:\n{}\n\n'.format(name)
