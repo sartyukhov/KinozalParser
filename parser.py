@@ -258,9 +258,10 @@ def searchTorrents(name, sort=Sort.NEW):
     for each in s_res:
         counter += 1
         tor = Torrent(0, each)
-        t += '{c}. {n}[{qs}]({url})\n'.format(
-            c=counter, 
+        t += '{c}. {n} {y}[{qs}]({url})\n'.format(
+            c=counter,
             n=tor.ruName,
+            y=tor.year,
             qs=tor.quality + ' ' + tor.size,
             url=tor.selfUrl
         )
@@ -300,7 +301,7 @@ def parseTorrentPage(data):
     '''
     d = dict()
 
-    for db in ('IMDb', 'Кинопоиск'):
+    for db in ('Кинопоиск', 'IMDb'):
         pattern = r'href="(.*)" target=.*>{}<span class=.*>(.*)</span>'.format(db)
         findResult = findall(pattern, data)
         if len(findResult) > 0:
