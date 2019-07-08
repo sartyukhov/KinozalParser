@@ -12,7 +12,7 @@ from threading                  import Thread
 from html                       import unescape
 # project includes
 from logger                     import logger
-from dbHandler                  import contentDB, urlDB
+from dbHandler                  import contentDB
 from urlHandler.urlOpener       import getUrlData
 
 log = logger.getLogger('parser')
@@ -158,24 +158,24 @@ class TorrentsContainer:
         counter = 0
         for f in self.files:
             counter += 1
-            if f.raturl_s:
-                ratingMD = ' | [{}: {}]({})'.format(f.ratsrc, f.rating, f.raturl_s)
+            if f.raturl:
+                ratingMD = ' | [{}: {}]({})'.format(f.ratsrc, f.rating, f.raturl)
             else:
                 ratingMD = ''
             t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
                 year    = f.year,
-                selfurl = f.selfUrl_s,
+                selfurl = f.selfUrl,
                 rating  = ratingMD
             )
-            if f.topUrl_s:
+            if f.topUrl:
                 t += '[Best: {qual} {size}]({url})\n'.format(
                     qual = f.topQuality,
                     size = f.topSize,
-                    url  = f.topUrl_s
+                    url  = f.topUrl
                 )
-            t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl_s)
+            t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
             if counter >= num:
                 break
             t += '~' * 15 + '\n'
@@ -203,19 +203,15 @@ class Torrent:
         self.pirs         = args[6]
         self.uploaded     = args[7]
         self.selfUrl      = self.baseUrl + self.id
-        self.selfUrl_s    = self.selfUrl
 
         self.ratsrc       = ''
         self.raturl       = ''
         self.rating       = ''
-        self.raturl_s     = ''
 
         self.topUrl       = ''
-        self.topUrl_s     = ''
         self.topQuality   = ''
         self.topSize      = ''
         self.mirrorsUrl   = ''
-        self.mirrorsUrl_s = ''
 
     def downloadMoreInfo(self):
         # get rating 
@@ -237,11 +233,6 @@ class Torrent:
             self.topUrl     = self.baseUrl + topMirror[0]
             self.topQuality = topMirror[3]
             self.topSize    = topMirror[4]
-        # get shorter urls
-        self.selfUrl_s    = urlDB.getShortUrl(self.selfUrl)
-        self.raturl_s     = urlDB.getShortUrl(self.raturl)     if self.raturl     else ''
-        self.topUrl_s     = urlDB.getShortUrl(self.topUrl)     if self.topUrl     else ''
-        self.mirrorsUrl_s = urlDB.getShortUrl(self.mirrorsUrl) if self.mirrorsUrl else ''
 
 def searchTorrents(name, sort=Sort.NEW):
     ''' Search request
@@ -258,7 +249,7 @@ def searchTorrents(name, sort=Sort.NEW):
     for each in s_res:
         counter += 1
         tor = Torrent(0, each)
-        t += '{c}. {n} {y}[{qs}]({url})\n'.format(
+        t += '{c}. {n} ({y}) [{qs}]({url})\n'.format(
             c=counter,
             n=tor.ruName,
             y=tor.year,
