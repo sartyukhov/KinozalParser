@@ -157,17 +157,15 @@ class TorrentsContainer:
         )
         counter = 0
         for f in self.files:
+            if counter > 0:
+                t += '~' * 15 + '\n'
             counter += 1
-            if f.raturl:
-                ratingMD = ' | [{}: {}]({})'.format(f.ratsrc, f.rating, f.raturl)
-            else:
-                ratingMD = ''
             t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
                 N       = counter,
                 name    = f.name,
                 year    = f.year,
                 selfurl = f.selfUrl,
-                rating  = ratingMD
+                rating  = f.getRatingMD()
             )
             if f.topUrl:
                 t += '[Best: {qual} {size}]({url})\n'.format(
@@ -178,7 +176,6 @@ class TorrentsContainer:
             t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
             if counter >= num:
                 break
-            t += '~' * 15 + '\n'
         if counter == 0:
             t += 'Подборка пуста, попробуйте изменить фильтры.\n'
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
@@ -204,10 +201,6 @@ class Torrent:
         self.uploaded     = args[7]
         self.selfUrl      = self.baseUrl + self.id
 
-        self.ratsrc       = ''
-        self.raturl       = ''
-        self.rating       = ''
-
         self.topUrl       = ''
         self.topQuality   = ''
         self.topSize      = ''
@@ -215,10 +208,7 @@ class Torrent:
 
     def downloadMoreInfo(self):
         # get rating 
-        parsed = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
-        self.ratsrc = parsed.get('ratsrc', '')
-        self.raturl = parsed.get('raturl', '')
-        self.rating = parsed.get('rating', '')
+        self.rating = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
         # get best quelity
         self.mirrorsUrl =  TorrentsContainer.searchUrl
         self.mirrorsUrl += 's={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
@@ -233,6 +223,13 @@ class Torrent:
             self.topUrl     = self.baseUrl + topMirror[0]
             self.topQuality = topMirror[3]
             self.topSize    = topMirror[4]
+
+    def getRatingMD(self):
+        t = ''
+        for rat in self.rating:
+            t += ' | [{}: {}]({})'.format(rat[0], rat[2], rat[1])
+
+        return t
 
 def searchTorrents(name, sort=Sort.NEW):
     ''' Search request
@@ -285,23 +282,24 @@ def parseTorrentsList(data):
 
 def parseTorrentPage(data):
     ''' Parse html page (torrent page) and find ratings
-        Result dict:
-            d[ratsrc] : database source (IMDB or Kinozal)
-            d[raturl] : rating url
-            d[rating] : rating value (0:10)
+        Result list of lists:
+            result[0] : database source (IMDB or Kinozal)
+            result[1] : rating url
+            result[2] : rating value (0:10)
     '''
-    d = dict()
+    result = []
 
     for db in ('Кинопоиск', 'IMDb'):
         pattern = r'href="(.*)" target=.*>{}<span class=.*>(.*)</span>'.format(db)
         findResult = findall(pattern, data)
         if len(findResult) > 0:
-            d['ratsrc'] = db
-            d['raturl'] = findResult[0][0]
-            d['rating'] = findResult[0][1]
-            break
+            res = []
+            res.append(db)
+            res.append(findResult[0][0])
+            res.append(findResult[0][1])
+            result.append(res)
 
-    return d
+    return result
 
 def updateDB():
     ''' Update cids in content data base and saves result on disk
