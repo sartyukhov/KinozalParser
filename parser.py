@@ -231,7 +231,7 @@ class Torrent:
 
         return t
 
-def searchTorrents(name, sort=Sort.NEW):
+def searchTorrents(name, quantity=30, sort=Sort.NEW):
     ''' Search request
     '''
     url = TorrentsContainer.searchUrl
@@ -253,6 +253,8 @@ def searchTorrents(name, sort=Sort.NEW):
             qs=tor.quality + ' ' + tor.size,
             url=tor.selfUrl
         )
+        if counter >= quantity:
+            break
 
     if counter == 0:
         t += 'Ничего не найдено'
