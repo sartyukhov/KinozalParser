@@ -155,29 +155,30 @@ class TorrentsContainer:
             Sort.toText(self.sort).capitalize(),
             Days.toText(self.days, case=True)
         )
-        counter = 0
-        for f in self.files:
-            if counter > 0:
-                t += '~' * 15 + '\n'
-            counter += 1
-            t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
-                N       = counter,
-                name    = f.name,
-                year    = f.year,
-                selfurl = f.selfUrl,
-                rating  = f.getRatingMD()
-            )
-            if f.topUrl:
-                t += '[Best: {qual} {size}]({url})\n'.format(
-                    qual = f.topQuality,
-                    size = f.topSize,
-                    url  = f.topUrl
-                )
-            t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
-            if counter >= num:
-                break
-        if counter == 0:
+        if len(self.files) == 0:
             t += 'Подборка пуста, попробуйте изменить фильтры.\n'
+        else:
+            for cnt, f in enumerate(self.files, 1):
+                if cnt > 1:
+                    t += '~' * 15 + '\n'
+
+                t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
+                    N       = cnt,
+                    name    = f.name,
+                    year    = f.year,
+                    selfurl = f.selfUrl,
+                    rating  = f.getRatingMD()
+                )
+                if f.topUrl:
+                    t += '[Best: {qual} {size}]({url})\n'.format(
+                        qual = f.topQuality,
+                        size = f.topSize,
+                        url  = f.topUrl
+                    )
+                t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
+                if cnt >= num:
+                    break
+
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
         return unescape(t)
 
@@ -242,23 +243,22 @@ def searchTorrents(name, quantity=30, sort=Sort.NEW):
         )
     s_res = parseTorrentsList(getUrlData(url, name='mirrors_page'))
     t = 'Результат поиска по:\n{}\n\n'.format(name)
-    counter = 0
-    for each in s_res:
-        counter += 1
-        tor = Torrent(0, each)
-        t += '{c}. {n} ({y}) [{qs}]({url})\n'.format(
-            c=counter,
-            n=tor.ruName,
-            y=tor.year,
-            qs=tor.quality + ' ' + tor.size,
-            url=tor.selfUrl
-        )
-        if counter >= quantity:
-            break
-
-    if counter == 0:
+    
+    if len(s_res) == 0:
         t += 'Ничего не найдено'
-
+    else:
+        for cnt, each in enumerate(s_res, 1):
+            cnt += 1
+            tor = Torrent(0, each)
+            t += '{c}. {n} ({y}) [{qs}]({url})\n'.format(
+                c=cnt,
+                n=tor.ruName,
+                y=tor.year,
+                qs=tor.quality + ' ' + tor.size,
+                url=tor.selfUrl
+            )
+            if cnt >= quantity:
+                break
     return t
 
 def parseTorrentsList(data):
