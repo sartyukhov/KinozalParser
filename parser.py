@@ -87,7 +87,10 @@ class TorrentsContainer:
                 log.debug('{} database loaded'.format(dumpName))
                 return old
         except:
-            log.exception('{} database load failed'.format(dumpName))
+            log.debug('{} database load failed'.format(dumpName))
+            new = cls(content, days, sort)
+            new.update()
+            return new
 
     def __init__(self, content, days, sort):
         self.created = time() + 10800 # UTC+3
@@ -105,14 +108,15 @@ class TorrentsContainer:
                 c=self.content,
                 t=self.sort,
                 w=self.days,
-                p=str(page)
+                p=page
             )
             for t in parseTorrentsList(getUrlData(url, name='page')):
                 self.appendUnique(Torrent(self.content, t))
                 if len(self) >= num:
                     break
-            if len(self) >= num:
-                break
+            else:
+                continue
+            break
         if dump:
             self.dump()
 
@@ -149,7 +153,7 @@ class TorrentsContainer:
         except:
             log.exception('{} database on disk update failed'.format(dumpName))
 
-    def getListOfFiles(self, num):
+    def getSubscription(self, num):
         t = '{}\n{} за {}\n\n'.format(
             contentDB.cid2Rname(self.content),
             Sort.toText(self.sort).capitalize(),
@@ -176,7 +180,7 @@ class TorrentsContainer:
                         url  = f.topUrl
                     )
                 t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
-                if cnt >= num:
+                if cnt >= int(num):
                     break
 
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
@@ -193,7 +197,7 @@ class Torrent:
         self.content      = content
         self.id           = args[0]
         self.name         = args[1]
-        self.ruName       = findall(r'([^/]*)', self.name)[0]
+        self.ruName       = self.name.split('/')[0]
         self.year         = args[2]
         self.quality      = args[3]
         self.size         = args[4]
@@ -209,7 +213,7 @@ class Torrent:
 
     def downloadMoreInfo(self):
         # get rating 
-        self.rating = parseTorrentPage(getUrlData(self.baseUrl + self.id, name='tor_page'))
+        self.rating = parseRatings(getUrlData(self.baseUrl + self.id, name='tor_page'))
         # get best quelity
         self.mirrorsUrl =  TorrentsContainer.searchUrl
         self.mirrorsUrl += 's={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
@@ -248,18 +252,17 @@ def searchTorrents(name, quantity=30, sort=Sort.NEW):
         t += 'Ничего не найдено'
     else:
         for cnt, each in enumerate(s_res, 1):
-            cnt += 1
             tor = Torrent(0, each)
             t += '{c}. {n} ({y}) [{qs}]({url})\n'.format(
                 c=cnt,
-                n=tor.ruName,
+                n=tor.name,
                 y=tor.year,
                 qs=tor.quality + ' ' + tor.size,
                 url=tor.selfUrl
             )
             if cnt >= quantity:
                 break
-    return t
+    return unescape(t)
 
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
@@ -282,7 +285,7 @@ def parseTorrentsList(data):
     fp += r'<td class="s">(.*)</td>\n'
     return findall(fp, data)
 
-def parseTorrentPage(data):
+def parseRatings(data):
     ''' Parse html page (torrent page) and find ratings
         Result list of lists:
             result[0] : database source (IMDB or Kinozal)
