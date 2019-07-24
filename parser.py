@@ -155,6 +155,9 @@ class TorrentsContainer:
             log.exception('{} database on disk update failed'.format(dumpName))
 
     def getSubscription(self, num):
+        if num > len(self):
+            self.update(num)
+
         t = '{}\n{} за {}\n\n'.format(
             contentDB.cid2Rname(self.content),
             Sort.toText(self.sort).capitalize(),
