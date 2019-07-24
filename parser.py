@@ -42,7 +42,7 @@ class Sort():
             return 'по пирам'
         elif sort == cls.SIZE:
             return 'по размеру'
-            
+
 class Days():
     ''' Select freshness of data
     '''
@@ -71,6 +71,7 @@ class Days():
 class TorrentsContainer:
     ''' Collects torrents inside (array-like)
     '''
+    SUBS_SEP = '~' * 15 + '\n'
     MAX_PAGES = 5
     searchUrl = 'http://kinozal.tv/browse.php?'
 
@@ -164,7 +165,7 @@ class TorrentsContainer:
         else:
             for cnt, f in enumerate(self.files, 1):
                 if cnt > 1:
-                    t += '~' * 15 + '\n'
+                    t += self.SUBS_SEP
 
                 t += '{N}: {name} / ({year})\n[Link]({selfurl}){rating}\n'.format(
                     N       = cnt,
@@ -212,7 +213,7 @@ class Torrent:
         self.mirrorsUrl   = ''
 
     def downloadMoreInfo(self):
-        # get rating 
+        # get rating
         self.rating = parseRatings(getUrlData(self.baseUrl + self.id, name='tor_page'))
         # get best quelity
         self.mirrorsUrl =  TorrentsContainer.searchUrl
@@ -236,7 +237,7 @@ class Torrent:
 
         return t
 
-def searchTorrents(name, quantity=30, sort=Sort.NEW):
+def searchTorrents(name, quantity=50, sort=Sort.NEW):
     ''' Search request
     '''
     url = TorrentsContainer.searchUrl
@@ -247,7 +248,7 @@ def searchTorrents(name, quantity=30, sort=Sort.NEW):
         )
     s_res = parseTorrentsList(getUrlData(url, name='mirrors_page'))
     t = 'Результат поиска по:\n{}\n\n'.format(name)
-    
+
     if len(s_res) == 0:
         t += 'Ничего не найдено'
     else:
