@@ -196,7 +196,10 @@ class TorrentsContainer:
 class Torrent:
     ''' One torrent page's data
     '''
-    baseUrl = 'http://kinozal.tv/details.php?id='
+    @property
+    def baseUrl(self):
+        self._baseUrl = 'http://kinozal.tv/details.php?id='
+        
     def __init__(self, content, args):
         self.content      = content
         self.id           = args[0]
@@ -208,7 +211,7 @@ class Torrent:
         self.sids         = args[5]
         self.pirs         = args[6]
         self.uploaded     = args[7]
-        self.selfUrl      = self.baseUrl + self.id
+        self.selfUrl      = self._baseUrl + self.id
 
         self.topUrl       = ''
         self.topQuality   = ''
@@ -217,7 +220,7 @@ class Torrent:
 
     def downloadMoreInfo(self):
         # get rating
-        self.rating = parseRatings(getUrlData(self.baseUrl + self.id, name='tor_page'))
+        self.rating = parseRatings(getUrlData(self._baseUrl + self.id, name='tor_page'))
         # get best quelity
         self.mirrorsUrl =  TorrentsContainer.searchUrl
         self.mirrorsUrl += 's={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
@@ -229,7 +232,7 @@ class Torrent:
         mirrors = parseTorrentsList(getUrlData(self.mirrorsUrl, name='mirrors_page'))
         if len(mirrors) > 0:
             topMirror       = mirrors[0]
-            self.topUrl     = self.baseUrl + topMirror[0]
+            self.topUrl     = self._baseUrl + topMirror[0]
             self.topQuality = topMirror[3]
             self.topSize    = topMirror[4]
 
@@ -309,6 +312,29 @@ def parseRatings(data):
             result.append(res)
 
     return result
+
+def parseDate(data):
+    D = {'января':1, 'февраля':2, 'марта':3, 'апреля':4, 'мая':5, 'июня':6,
+        'июля':7, 'августа':8, 'сентября':9, 'октября':10, 'ноября':11, 'декабря':12}
+    res = ''
+    for t in ('Обновлен', 'Залит'):
+        res = findFirst(r'<li>{}<span class="floatright green n">(.+)</span></li>'.format(t), data)
+        if res is not None:
+            res = res.lower()
+
+            if res.find('сегодня') >= 0:
+                date = datetime.now().strftime('%d %m %Y')
+                res = res.replace('сегодня', date)
+            elif res.find('вчера') >= 0:
+                date = (datetime.now() - timedelta(days=1)).strftime('%d %m %Y')
+                res = res.replace('вчера', date)
+
+            for key, val in D.items():
+                if res.find(key) >= 0:
+                    res = res.replace(key, '{:02}'.format(val))
+                    break
+            break
+    return res
 
 def updateDB():
     ''' Update cids in content data base and saves result on disk
