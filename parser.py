@@ -6,6 +6,7 @@ from urllib.parse               import quote
 from re                         import findall
 from pickle                     import dump, load
 from time                       import time, gmtime, strftime
+from datetime                   import datetime, timedelta
 from sys                        import platform
 from os.path                    import dirname, abspath
 from threading                  import Thread
@@ -112,7 +113,8 @@ class TorrentsContainer:
                 p=page
             )
             for t in parseTorrentsList(getUrlData(url, name='page')):
-                self.appendUnique(Torrent(self.content, t))
+                t['content'] = self.content
+                self.appendUnique(Torrent(**t))
                 if len(self) >= num:
                     break
             else:
@@ -200,23 +202,31 @@ class Torrent:
     def baseUrl(self):
         self._baseUrl = 'http://kinozal.tv/details.php?id='
         
-    def __init__(self, content, args):
-        self.content      = content
-        self.id           = args[0]
-        self.name         = args[1]
-        self.ruName       = self.name.split('/')[0]
-        self.year         = args[2]
-        self.quality      = args[3]
-        self.size         = args[4]
-        self.sids         = args[5]
-        self.pirs         = args[6]
-        self.uploaded     = args[7]
-        self.selfUrl      = self._baseUrl + self.id
+    def __init__(self, id='', content=0, name='', year='', quality='', size='', sids='', 
+            pirs='', uploaded='', url=''):
+        
+        if url:
+            self.downloadFromSelfPage()
+        else:
+            self.id           = id
+            self.content      = content
+            self.name         = name
+            self.ruName       = self.name.split('/')[0]
+            self.year         = year
+            self.quality      = quality
+            self.size         = size
+            self.sids         = sids
+            self.pirs         = pirs
+            self.uploaded     = uploaded
+            self.selfUrl      = self._baseUrl + self.id
 
         self.topUrl       = ''
         self.topQuality   = ''
         self.topSize      = ''
         self.mirrorsUrl   = ''
+
+    def downloadFromSelfPage(self):
+        pass
 
     def downloadMoreInfo(self):
         # get rating
@@ -259,7 +269,7 @@ def searchTorrents(name, quantity=50, sort=Sort.NEW):
         t += 'Ничего не найдено'
     else:
         for cnt, each in enumerate(s_res, 1):
-            tor = Torrent(0, each)
+            tor = Torrent(**each)
             t += '{c}. {n} ({y}) [{qs}]({url})\n'.format(
                 c=cnt,
                 n=tor.name,
@@ -271,17 +281,21 @@ def searchTorrents(name, quantity=50, sort=Sort.NEW):
                 break
     return unescape(t)
 
+def parseSelfPage(data):
+    ''' Parse html page (torrent page)
+    '''
+    data = data.replace('\'', '\"')
+
+    fp =  r'<b>Название:</b>\s?(.+)<br>\n'
+    fp += r'<b>Оригинальное название:</b>\s?(.+)<br>\n'
+    fp += r'<b>Год выпуска:</b>\s?([1-2]{1}[0-9]{3})<br>\n'
+    fp += r'<b>Размер:</b>\s?(.+)<br>\n'
+    res = findall(fp, data)
+    return {}
+
+
 def parseTorrentsList(data):
     ''' Parse html page (search result) and find all torrents (+ data)
-        Result tuple:
-            [0] : id
-            [1] : name
-            [2] : year
-            [3] : quality
-            [4] : size
-            [5] : sids
-            [6] : pirs
-            [7] : uploaded
     '''
     data = data.replace('\'', '\"')
     fp =  r'<td class="nam"><a href=.*/details.php\?id=(\d+).*">(.*) / ([1-2]{1}[0-9]{3})'
@@ -290,7 +304,16 @@ def parseTorrentsList(data):
     fp += r'<td class="sl_s">(\d*)</td>\n'
     fp += r'<td class="sl_p">(\d*)</td>\n'
     fp += r'<td class="s">(.*)</td>\n'
-    return findall(fp, data)
+    return [{
+        'id'      :res[0],
+        'name'    :res[1],
+        'year'    :res[2],
+        'quality' :res[3],
+        'size'    :res[4],
+        'sids'    :res[5],
+        'pirs'    :res[6],
+        'uploaded':res[7]
+    } for res in findall(fp, data)]
 
 def parseRatings(data):
     ''' Parse html page (torrent page) and find ratings
@@ -318,9 +341,9 @@ def parseDate(data):
         'июля':7, 'августа':8, 'сентября':9, 'октября':10, 'ноября':11, 'декабря':12}
     res = ''
     for t in ('Обновлен', 'Залит'):
-        res = findFirst(r'<li>{}<span class="floatright green n">(.+)</span></li>'.format(t), data)
-        if res is not None:
-            res = res.lower()
+        res = findall(r'<li>{}<span class="floatright green n">(.+)</span></li>'.format(t), data)
+        if res:
+            res = res[0].lower()
 
             if res.find('сегодня') >= 0:
                 date = datetime.now().strftime('%d %m %Y')
