@@ -131,7 +131,7 @@ class TorrentsContainer:
 
     def __contains__(self, item):
         for f in self.files:
-            if f.name == item.name:
+            if (f.name == item.name) and (f.year == item.year):
                 return True
         return False
 
@@ -157,6 +157,7 @@ class TorrentsContainer:
             log.exception('{} database on disk update failed'.format(dumpName))
 
     def getSubscription(self, num):
+        num = int(num)
         if num > len(self):
             self.update(num)
 
@@ -186,7 +187,7 @@ class TorrentsContainer:
                         url  = f.topUrl
                     )
                 t += '[Other mirrors]({u})\n'.format(u=f.mirrorsUrl)
-                if cnt >= int(num):
+                if cnt >= num:
                     break
 
         t += strftime('\nUpd: %H:%M (%d/%m/%y) (UTC+3)\n', gmtime(self.created))
@@ -198,9 +199,7 @@ class TorrentsContainer:
 class Torrent:
     ''' One torrent page's data
     '''
-    @property
-    def baseUrl(self):
-        self._baseUrl = 'http://kinozal.tv/details.php?id='
+    baseUrl = 'http://kinozal.tv/details.php?id='
         
     def __init__(self, id='', content=0, name='', year='', quality='', size='', sids='', 
             pirs='', uploaded='', url=''):
@@ -218,7 +217,7 @@ class Torrent:
             self.sids         = sids
             self.pirs         = pirs
             self.uploaded     = uploaded
-            self.selfUrl      = self._baseUrl + self.id
+            self.selfUrl      = self.baseUrl + self.id
 
         self.topUrl       = ''
         self.topQuality   = ''
@@ -230,7 +229,7 @@ class Torrent:
 
     def downloadMoreInfo(self):
         # get rating
-        self.rating = parseRatings(getUrlData(self._baseUrl + self.id, name='tor_page'))
+        self.rating = parseRatings(getUrlData(self.baseUrl + self.id, name='tor_page'))
         # get best quelity
         self.mirrorsUrl =  TorrentsContainer.searchUrl
         self.mirrorsUrl += 's={s}&g=0&c={c}&v=0&d=0&w=0&t={t}&f=0'\
@@ -242,9 +241,9 @@ class Torrent:
         mirrors = parseTorrentsList(getUrlData(self.mirrorsUrl, name='mirrors_page'))
         if len(mirrors) > 0:
             topMirror       = mirrors[0]
-            self.topUrl     = self._baseUrl + topMirror[0]
-            self.topQuality = topMirror[3]
-            self.topSize    = topMirror[4]
+            self.topUrl     = self.baseUrl + topMirror.get('id', '')
+            self.topQuality = topMirror.get('quality', '')
+            self.topSize    = topMirror.get('size', '')
 
     def getRatingMD(self):
         t = ''
